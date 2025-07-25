@@ -59,19 +59,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: pcap-io-linux-x86_64
+            artifact_name: pcapfile-io-linux-x86_64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_name: pcap-io-linux-aarch64
+            artifact_name: pcapfile-io-linux-aarch64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: pcap-io-windows-x86_64.exe
+            artifact_name: pcapfile-io-windows-x86_64.exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: pcap-io-macos-x86_64
+            artifact_name: pcapfile-io-macos-x86_64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: pcap-io-macos-aarch64
+            artifact_name: pcapfile-io-macos-aarch64
 
     steps:
       - name: Checkout code
@@ -101,7 +101,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.artifact_name }}
-          path: target/${{ matrix.target }}/release/pcap-io*
+          path: target/${{ matrix.target }}/release/pcapfile-io*
 
   release:
     name: Release to GitHub
@@ -149,7 +149,7 @@ jobs:
           else
             echo "## Initial Release" > CHANGELOG.md
             echo "" >> CHANGELOG.md
-            echo "This is the initial release of the pcap-io library." >> CHANGELOG.md
+            echo "This is the initial release of the pcapfile-io library." >> CHANGELOG.md
           fi
           
           # Output changelog content for subsequent steps
@@ -169,10 +169,10 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            pcap-io-linux-x86_64/*
-            pcap-io-linux-aarch64/*
-            pcap-io-windows-x86_64.exe/*
-            pcap-io-macos-x86_64/*
-            pcap-io-macos-aarch64/*
+            pcapfile-io-linux-x86_64/*
+            pcapfile-io-linux-aarch64/*
+            pcapfile-io-windows-x86_64.exe/*
+            pcapfile-io-macos-x86_64/*
+            pcapfile-io-macos-aarch64/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

@@ -1,5 +1,5 @@
 [package]
-name = "pcap-io"
+name = "pcapfile-io"
 version = "0.1.0"
 edition = "2021"
 description = "高性能PCAP文件读写库"

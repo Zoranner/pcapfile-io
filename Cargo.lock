@@ -542,7 +542,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pcap-io"
+name = "pcapfile-io"
 version = "0.1.0"
 dependencies = [
  "base64",

@@ -1,6 +1,6 @@
 //! 数据集使用示例
 //!
-//! 演示如何使用PCAP-IO库进行数据集读写操作，包括：
+//! 演示如何使用PcapFile.IO库进行数据集读写操作，包括：
 //! - 通过Writer创建数据集并生成索引
 //! - 通过Reader读取数据集并访问索引信息
 //! - 索引管理和验证
@@ -22,7 +22,7 @@ fn main() -> PcapResult<()> {
     }
     std::fs::create_dir_all(&dataset_path)?;
 
-    println!("=== PCAP-IO 数据集使用示例 ===\n");
+    println!("=== PcapFile.IO 数据集使用示例 ===\n");
 
     // 第一步：创建数据集并写入数据包
     create_dataset(&dataset_path)?;

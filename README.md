@@ -23,7 +23,7 @@
 
 ```toml
 [dependencies]
-pcap-io = "0.1.0"
+pcapfile-io = "0.1.0"
 ```
 
 ## 🎯 快速开始
@@ -116,7 +116,7 @@ fn batch_operations() -> Result<()> {
 ### 模块结构
 
 ```
-pcap-io/
+pcapfile-io/
 ├── src/
 │   ├── lib.rs              # 主模块入口
 │   ├── config.rs           # 配置管理
