@@ -1,0 +1,59 @@
+# Main release workflow that coordinates cargo publishing and GitHub release creation
+# This workflow runs tests once and then triggers both publishing workflows
+
+name: Release Coordination
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          components: rustfmt, clippy
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check code formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy checks
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --all-features
+
+  publish-cargo:
+    name: Publish to crates.io
+    needs: test
+    uses: ./.github/workflows/cargo-publish.yml
+    with:
+      skip_tests: true
+    secrets: inherit
+
+  release-github:
+    name: Release to GitHub
+    needs: test
+    uses: ./.github/workflows/github-release.yml
+    with:
+      skip_tests: true
+    secrets: inherit 
