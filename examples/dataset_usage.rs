@@ -5,9 +5,9 @@
 //! - 通过Reader读取数据集并访问索引信息
 //! - 索引管理和验证
 
-use pcap_io::{
-    DataPacket, PcapReader, PcapWriter, ReaderConfig,
-    PcapResult, WriterConfig,
+use pcapfile_io::{
+    DataPacket, PcapReader, PcapResult, PcapWriter,
+    ReaderConfig, WriterConfig,
 };
 use std::{path::Path, time::SystemTime};
 

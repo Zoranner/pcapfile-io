@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::Path;
 
-use pcap_io::{
+use pcapfile_io::{
     DataPacket, PcapReader, PcapResult, PcapWriter,
     ReaderConfig, WriterConfig,
 };
@@ -17,10 +17,10 @@ fn clean_dataset_directory<P: AsRef<Path>>(
     let path = dataset_path.as_ref();
     if path.exists() {
         fs::remove_dir_all(path)
-            .map_err(|e| pcap_io::PcapError::Io(e))?;
+            .map_err(|e| pcapfile_io::PcapError::Io(e))?;
     }
     fs::create_dir_all(path)
-        .map_err(|e| pcap_io::PcapError::Io(e))?;
+        .map_err(|e| pcapfile_io::PcapError::Io(e))?;
     Ok(())
 }
 

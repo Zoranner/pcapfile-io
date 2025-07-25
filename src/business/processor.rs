@@ -5,9 +5,9 @@
 use log::{debug, info, warn};
 use std::time::SystemTime;
 
-use crate::foundation::error::{PcapError, PcapResult};
-use crate::data::models::DataPacket;
 use crate::business::config::CommonConfig;
+use crate::data::models::DataPacket;
+use crate::foundation::error::{PcapError, PcapResult};
 
 /// 数据包处理器
 pub struct PacketProcessor {
@@ -31,7 +31,10 @@ impl PacketProcessor {
     }
 
     /// 处理单个数据包
-    pub fn process_packet(&mut self, packet: &DataPacket) -> PcapResult<ProcessedPacket> {
+    pub fn process_packet(
+        &mut self,
+        packet: &DataPacket,
+    ) -> PcapResult<ProcessedPacket> {
         // 业务验证
         self.validate_packet(packet)?;
 
@@ -46,12 +49,18 @@ impl PacketProcessor {
             validation_result: ValidationResult::Valid,
         };
 
-        debug!("已处理数据包，总计: {}", self.processed_count);
+        debug!(
+            "已处理数据包，总计: {}",
+            self.processed_count
+        );
         Ok(processed)
     }
 
     /// 批量处理数据包
-    pub fn process_batch(&mut self, packets: &[DataPacket]) -> PcapResult<Vec<ProcessedPacket>> {
+    pub fn process_batch(
+        &mut self,
+        packets: &[DataPacket],
+    ) -> PcapResult<Vec<ProcessedPacket>> {
         let mut results = Vec::with_capacity(packets.len());
 
         for packet in packets {
@@ -68,29 +77,40 @@ impl PacketProcessor {
             }
         }
 
-        info!("批量处理完成，成功: {}/{}", results.len(), packets.len());
+        info!(
+            "批量处理完成，成功: {}/{}",
+            results.len(),
+            packets.len()
+        );
         Ok(results)
     }
 
     /// 验证数据包
-    fn validate_packet(&self, packet: &DataPacket) -> PcapResult<()> {
+    fn validate_packet(
+        &self,
+        packet: &DataPacket,
+    ) -> PcapResult<()> {
         if !self.config.enable_validation {
             return Ok(());
         }
 
         // 大小验证
-        if packet.packet_length() > self.config.max_packet_size {
-            return Err(PcapError::InvalidPacketSize(format!(
-                "数据包大小 {} 超过限制 {}",
-                packet.packet_length(),
-                self.config.max_packet_size
-            )));
+        if packet.packet_length()
+            > self.config.max_packet_size
+        {
+            return Err(PcapError::InvalidPacketSize(
+                format!(
+                    "数据包大小 {} 超过限制 {}",
+                    packet.packet_length(),
+                    self.config.max_packet_size
+                ),
+            ));
         }
 
         // 完整性验证
         if !packet.is_valid() {
             return Err(PcapError::CorruptedData(
-                "数据包校验和验证失败".to_string()
+                "数据包校验和验证失败".to_string(),
             ));
         }
 
@@ -101,9 +121,11 @@ impl PacketProcessor {
             .unwrap_or_default()
             .as_nanos() as u64;
 
-        if timestamp > now + 1_000_000_000 { // 允许1秒的时钟偏差
+        if timestamp > now + 1_000_000_000 {
+            // 允许1秒的时钟偏差
             return Err(PcapError::InvalidArgument(
-                "数据包时间戳不合理（未来时间）".to_string()
+                "数据包时间戳不合理（未来时间）"
+                    .to_string(),
             ));
         }
 
@@ -117,13 +139,17 @@ impl PacketProcessor {
         // 更新时间戳范围
         match self.first_timestamp {
             None => self.first_timestamp = Some(timestamp),
-            Some(first) if timestamp < first => self.first_timestamp = Some(timestamp),
+            Some(first) if timestamp < first => {
+                self.first_timestamp = Some(timestamp)
+            }
             _ => {}
         }
 
         match self.last_timestamp {
             None => self.last_timestamp = Some(timestamp),
-            Some(last) if timestamp > last => self.last_timestamp = Some(timestamp),
+            Some(last) if timestamp > last => {
+                self.last_timestamp = Some(timestamp)
+            }
             _ => {}
         }
 
@@ -139,8 +165,10 @@ impl PacketProcessor {
             total_bytes: self.total_bytes,
             first_timestamp: self.first_timestamp,
             last_timestamp: self.last_timestamp,
-            average_packet_size: if self.processed_count > 0 {
-                self.total_bytes as f64 / self.processed_count as f64
+            average_packet_size: if self.processed_count > 0
+            {
+                self.total_bytes as f64
+                    / self.processed_count as f64
             } else {
                 0.0
             },
@@ -199,7 +227,9 @@ impl ProcessorStatistics {
     /// 获取时间范围（纳秒）
     pub fn time_range_ns(&self) -> Option<u64> {
         match (self.first_timestamp, self.last_timestamp) {
-            (Some(first), Some(last)) => Some(last.saturating_sub(first)),
+            (Some(first), Some(last)) => {
+                Some(last.saturating_sub(first))
+            }
             _ => None,
         }
     }
@@ -208,7 +238,9 @@ impl ProcessorStatistics {
     pub fn packet_rate(&self) -> f64 {
         if let Some(time_range) = self.time_range_ns() {
             if time_range > 0 {
-                return (self.processed_count as f64) / (time_range as f64 / 1_000_000_000.0);
+                return (self.processed_count as f64)
+                    / (time_range as f64
+                        / 1_000_000_000.0);
             }
         }
         0.0
@@ -218,7 +250,9 @@ impl ProcessorStatistics {
     pub fn byte_rate(&self) -> f64 {
         if let Some(time_range) = self.time_range_ns() {
             if time_range > 0 {
-                return (self.total_bytes as f64) / (time_range as f64 / 1_000_000_000.0);
+                return (self.total_bytes as f64)
+                    / (time_range as f64
+                        / 1_000_000_000.0);
             }
         }
         0.0

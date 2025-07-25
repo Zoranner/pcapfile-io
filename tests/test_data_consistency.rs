@@ -2,7 +2,7 @@
 //!
 //! 测试写入和读取的一致性，确保数据完整性和可靠性
 
-use pcap_io::{
+use pcapfile_io::{
     DataPacket, PcapReader, PcapResult, PcapWriter,
 };
 use std::path::Path;

@@ -30,7 +30,7 @@
 //! ## 快速开始
 //!
 //! ```rust
-//! use pcap_io::{
+//! use pcapfile_io::{
 //!     ReaderConfig,
 //!     WriterConfig,
 //!     DataPacket,

@@ -12,5 +12,6 @@ pub use file_reader::PcapFileReader;
 pub use file_writer::PcapFileWriter;
 pub use formats::PcapFormatProcessor;
 pub use models::{
-    DataPacket, DataPacketHeader, DatasetInfo, FileInfo, PcapFileHeader,
+    DataPacket, DataPacketHeader, DatasetInfo, FileInfo,
+    PcapFileHeader,
 };

@@ -25,7 +25,9 @@ pub enum PcapError {
     #[error("数据包损坏: {0}")]
     CorruptedData(String),
 
-    #[error("校验和不匹配: 期望 {expected}, 实际 {actual}")]
+    #[error(
+        "校验和不匹配: 期望 {expected}, 实际 {actual}"
+    )]
     ChecksumMismatch { expected: String, actual: String },
 
     #[error("数据包大小无效: {0}")]
@@ -57,28 +59,60 @@ impl PcapError {
     /// 获取错误代码
     pub fn error_code(&self) -> PcapErrorCode {
         match self {
-            PcapError::FileNotFound(_) => PcapErrorCode::FileNotFound,
-            PcapError::DirectoryNotFound(_) => PcapErrorCode::DirectoryNotFound,
-            PcapError::InsufficientPermissions(_) => PcapErrorCode::InsufficientPermissions,
-            PcapError::DiskSpaceFull(_) => PcapErrorCode::DiskSpaceFull,
-            PcapError::InvalidFormat(_) => PcapErrorCode::InvalidFormat,
-            PcapError::CorruptedHeader(_) => PcapErrorCode::CorruptedHeader,
-            PcapError::CorruptedData(_) => PcapErrorCode::CorruptedData,
-            PcapError::ChecksumMismatch { .. } => PcapErrorCode::ChecksumMismatch,
-            PcapError::InvalidPacketSize(_) => PcapErrorCode::InvalidPacketSize,
-            PcapError::InvalidArgument(_) => PcapErrorCode::InvalidArgument,
-            PcapError::InvalidState(_) => PcapErrorCode::InvalidState,
-            PcapError::BufferOverflow(_) => PcapErrorCode::BufferOverflow,
-            PcapError::OutOfMemory(_) => PcapErrorCode::OutOfMemory,
+            PcapError::FileNotFound(_) => {
+                PcapErrorCode::FileNotFound
+            }
+            PcapError::DirectoryNotFound(_) => {
+                PcapErrorCode::DirectoryNotFound
+            }
+            PcapError::InsufficientPermissions(_) => {
+                PcapErrorCode::InsufficientPermissions
+            }
+            PcapError::DiskSpaceFull(_) => {
+                PcapErrorCode::DiskSpaceFull
+            }
+            PcapError::InvalidFormat(_) => {
+                PcapErrorCode::InvalidFormat
+            }
+            PcapError::CorruptedHeader(_) => {
+                PcapErrorCode::CorruptedHeader
+            }
+            PcapError::CorruptedData(_) => {
+                PcapErrorCode::CorruptedData
+            }
+            PcapError::ChecksumMismatch { .. } => {
+                PcapErrorCode::ChecksumMismatch
+            }
+            PcapError::InvalidPacketSize(_) => {
+                PcapErrorCode::InvalidPacketSize
+            }
+            PcapError::InvalidArgument(_) => {
+                PcapErrorCode::InvalidArgument
+            }
+            PcapError::InvalidState(_) => {
+                PcapErrorCode::InvalidState
+            }
+            PcapError::BufferOverflow(_) => {
+                PcapErrorCode::BufferOverflow
+            }
+            PcapError::OutOfMemory(_) => {
+                PcapErrorCode::OutOfMemory
+            }
             PcapError::Io(_) => PcapErrorCode::Unknown,
-            PcapError::Serialization(_) => PcapErrorCode::InvalidFormat,
+            PcapError::Serialization(_) => {
+                PcapErrorCode::InvalidFormat
+            }
             PcapError::Unknown(_) => PcapErrorCode::Unknown,
         }
     }
 
     /// 获取详细错误信息
     pub fn detailed_message(&self) -> String {
-        format!("错误代码: {}, 错误信息: {}", self.error_code(), self)
+        format!(
+            "错误代码: {}, 错误信息: {}",
+            self.error_code(),
+            self
+        )
     }
 }
 
@@ -109,14 +143,20 @@ impl From<serde_json::Error> for PcapError {
 /// 从base64错误转换为PcapError
 impl From<base64::DecodeError> for PcapError {
     fn from(err: base64::DecodeError) -> Self {
-        PcapError::InvalidFormat(format!("Base64解码失败: {}", err))
+        PcapError::InvalidFormat(format!(
+            "Base64解码失败: {}",
+            err
+        ))
     }
 }
 
 /// 从std::string::FromUtf8Error错误转换为PcapError
 impl From<std::string::FromUtf8Error> for PcapError {
     fn from(err: std::string::FromUtf8Error) -> Self {
-        PcapError::InvalidFormat(format!("UTF8解码失败: {}", err))
+        PcapError::InvalidFormat(format!(
+            "UTF8解码失败: {}",
+            err
+        ))
     }
 }
 
@@ -139,7 +179,10 @@ impl ErrorResult {
     }
 
     /// 创建失败结果
-    pub fn failure(error_message: String, error_code: Option<PcapErrorCode>) -> Self {
+    pub fn failure(
+        error_message: String,
+        error_code: Option<PcapErrorCode>,
+    ) -> Self {
         Self {
             success: false,
             error_message: Some(error_message),
@@ -149,19 +192,27 @@ impl ErrorResult {
 
     /// 从PcapError创建失败结果
     pub fn from_error(error: PcapError) -> Self {
-        Self::failure(error.to_string(), Some(error.error_code()))
+        Self::failure(
+            error.to_string(),
+            Some(error.error_code()),
+        )
     }
 }
 
 impl std::fmt::Display for ErrorResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         if self.success {
             write!(f, "操作成功")
         } else {
             write!(
                 f,
                 "操作失败: {} (错误代码: {:?})",
-                self.error_message.as_deref().unwrap_or("未知错误"),
+                self.error_message
+                    .as_deref()
+                    .unwrap_or("未知错误"),
                 self.error_code
             )
         }

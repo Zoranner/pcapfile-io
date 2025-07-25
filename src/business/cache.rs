@@ -34,7 +34,8 @@ impl CacheStats {
 
     /// 更新命中率
     pub fn update_hit_rate(&mut self) {
-        let total_requests = self.hit_count + self.miss_count;
+        let total_requests =
+            self.hit_count + self.miss_count;
         self.hit_rate = if total_requests > 0 {
             self.hit_count as f64 / total_requests as f64
         } else {
@@ -58,7 +59,11 @@ impl FileInfoCacheItem {
         }
     }
 
-    pub fn is_valid(&self, current_file_size: u64, current_write_time: SystemTime) -> bool {
+    pub fn is_valid(
+        &self,
+        current_file_size: u64,
+        current_write_time: SystemTime,
+    ) -> bool {
         self.file_info.file_size == current_file_size
             && self.file_info.modified_time
                 == current_write_time
@@ -68,7 +73,10 @@ impl FileInfoCacheItem {
                     .to_string()
     }
 
-    pub fn is_expired(&self, expiration_duration: Duration) -> bool {
+    pub fn is_expired(
+        &self,
+        expiration_duration: Duration,
+    ) -> bool {
         SystemTime::now()
             .duration_since(self.cache_time)
             .unwrap_or(Duration::ZERO)
@@ -90,7 +98,9 @@ impl CacheStatistics {
         if self.max_entries == 0 {
             0.0
         } else {
-            (self.total_entries as f64 / self.max_entries as f64) * 100.0
+            (self.total_entries as f64
+                / self.max_entries as f64)
+                * 100.0
         }
     }
 }
@@ -113,15 +123,23 @@ impl FileInfoCache {
             max_entries,
             cache_expiration: Duration::from_secs(30 * 60), // 30分钟
             cleanup_interval: Duration::from_secs(10 * 60), // 10分钟
-            last_cleanup: Arc::new(Mutex::new(SystemTime::now())),
+            last_cleanup: Arc::new(Mutex::new(
+                SystemTime::now(),
+            )),
             hit_count: Arc::new(Mutex::new(0)),
             miss_count: Arc::new(Mutex::new(0)),
         }
     }
 
     /// 从缓存中获取文件信息
-    pub fn get<P: AsRef<std::path::Path>>(&self, file_path: P) -> Option<FileInfo> {
-        let path_str = file_path.as_ref().to_string_lossy().to_string();
+    pub fn get<P: AsRef<std::path::Path>>(
+        &self,
+        file_path: P,
+    ) -> Option<FileInfo> {
+        let path_str = file_path
+            .as_ref()
+            .to_string_lossy()
+            .to_string();
         let mut cache = self.cache.lock().ok()?;
 
         // 执行定期清理
@@ -129,14 +147,25 @@ impl FileInfoCache {
 
         if let Some(item) = cache.get(&path_str) {
             // 检查文件是否已修改
-            if let Ok(metadata) = std::fs::metadata(&file_path) {
-                if let Ok(modified_time) = metadata.modified() {
-                    if item.is_valid(metadata.len(), modified_time) {
+            if let Ok(metadata) =
+                std::fs::metadata(&file_path)
+            {
+                if let Ok(modified_time) =
+                    metadata.modified()
+                {
+                    if item.is_valid(
+                        metadata.len(),
+                        modified_time,
+                    ) {
                         // 缓存命中
-                        if let Ok(mut hit_count) = self.hit_count.lock() {
+                        if let Ok(mut hit_count) =
+                            self.hit_count.lock()
+                        {
                             *hit_count += 1;
                         }
-                        return Some(item.file_info.clone());
+                        return Some(
+                            item.file_info.clone(),
+                        );
                     }
                 }
             }
@@ -151,8 +180,15 @@ impl FileInfoCache {
     }
 
     /// 向缓存中插入文件信息
-    pub fn insert<P: AsRef<std::path::Path>>(&self, file_path: P, file_info: FileInfo) {
-        let path_str = file_path.as_ref().to_string_lossy().to_string();
+    pub fn insert<P: AsRef<std::path::Path>>(
+        &self,
+        file_path: P,
+        file_info: FileInfo,
+    ) {
+        let path_str = file_path
+            .as_ref()
+            .to_string_lossy()
+            .to_string();
 
         if let Ok(mut cache) = self.cache.lock() {
             let item = FileInfoCacheItem::new(file_info);
@@ -160,13 +196,16 @@ impl FileInfoCache {
 
             // 检查缓存大小限制
             if cache.len() > self.max_entries {
-                let _ = self.cleanup_expired_entries(&mut cache);
+                let _ = self
+                    .cleanup_expired_entries(&mut cache);
 
                 // 如果清理后仍然超过限制，移除最旧的条目
                 if cache.len() > self.max_entries {
                     let oldest_key = cache
                         .iter()
-                        .min_by_key(|(_, item)| item.cache_time)
+                        .min_by_key(|(_, item)| {
+                            item.cache_time
+                        })
                         .map(|(key, _)| key.clone());
 
                     if let Some(key) = oldest_key {
@@ -179,10 +218,22 @@ impl FileInfoCache {
 
     /// 获取缓存统计信息
     pub fn get_cache_stats(&self) -> CacheStats {
-        let total_entries = self.cache.lock().map(|cache| cache.len()).unwrap_or(0);
+        let total_entries = self
+            .cache
+            .lock()
+            .map(|cache| cache.len())
+            .unwrap_or(0);
 
-        let hit_count = self.hit_count.lock().map(|guard| *guard).unwrap_or(0);
-        let miss_count = self.miss_count.lock().map(|guard| *guard).unwrap_or(0);
+        let hit_count = self
+            .hit_count
+            .lock()
+            .map(|guard| *guard)
+            .unwrap_or(0);
+        let miss_count = self
+            .miss_count
+            .lock()
+            .map(|guard| *guard)
+            .unwrap_or(0);
 
         let mut stats = CacheStats {
             total_entries,
@@ -199,10 +250,17 @@ impl FileInfoCache {
         &self,
         cache: &mut HashMap<String, FileInfoCacheItem>,
     ) -> Result<(), String> {
-        let mut last_cleanup = self.last_cleanup.lock().map_err(|_| "清理时间锁定失败")?;
+        let mut last_cleanup = self
+            .last_cleanup
+            .lock()
+            .map_err(|_| "清理时间锁定失败")?;
         let now = SystemTime::now();
 
-        if now.duration_since(*last_cleanup).unwrap_or(Duration::ZERO) >= self.cleanup_interval {
+        if now
+            .duration_since(*last_cleanup)
+            .unwrap_or(Duration::ZERO)
+            >= self.cleanup_interval
+        {
             self.cleanup_expired_entries(cache)?;
             *last_cleanup = now;
         }
@@ -216,7 +274,9 @@ impl FileInfoCache {
     ) -> Result<(), String> {
         let expired_keys: Vec<String> = cache
             .iter()
-            .filter(|(_, item)| item.is_expired(self.cache_expiration))
+            .filter(|(_, item)| {
+                item.is_expired(self.cache_expiration)
+            })
             .map(|(key, _)| key.clone())
             .collect();
 
@@ -227,27 +287,46 @@ impl FileInfoCache {
         Ok(())
     }
 
-    pub fn invalidate_file(&self, file_path: &str) -> Result<(), String> {
-        let mut cache = self.cache.lock().map_err(|_| "缓存锁定失败")?;
+    pub fn invalidate_file(
+        &self,
+        file_path: &str,
+    ) -> Result<(), String> {
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|_| "缓存锁定失败")?;
         cache.remove(file_path);
         Ok(())
     }
 
     pub fn clear(&self) -> Result<(), String> {
-        let mut cache = self.cache.lock().map_err(|_| "缓存锁定失败")?;
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|_| "缓存锁定失败")?;
         cache.clear();
         Ok(())
     }
 
-    pub fn get_statistics(&self) -> Result<CacheStatistics, String> {
-        let cache = self.cache.lock().map_err(|_| "缓存锁定失败")?;
+    pub fn get_statistics(
+        &self,
+    ) -> Result<CacheStatistics, String> {
+        let cache = self
+            .cache
+            .lock()
+            .map_err(|_| "缓存锁定失败")?;
 
         let expired_entries = cache
             .values()
-            .filter(|item| item.is_expired(self.cache_expiration))
+            .filter(|item| {
+                item.is_expired(self.cache_expiration)
+            })
             .count();
 
-        let last_cleanup = *self.last_cleanup.lock().map_err(|_| "清理时间锁定失败")?;
+        let last_cleanup = *self
+            .last_cleanup
+            .lock()
+            .map_err(|_| "清理时间锁定失败")?;
 
         Ok(CacheStatistics {
             total_entries: cache.len(),

@@ -3,9 +3,9 @@
 use std::fs;
 use std::path::Path;
 
-use pcap_io::{
-    DataPacket, PcapReader, PcapWriter, ReaderConfig,
-    PcapResult, WriterConfig,
+use pcapfile_io::{
+    DataPacket, PcapReader, PcapResult, PcapWriter,
+    ReaderConfig, WriterConfig,
 };
 
 const TEST_BASE_PATH: &str = "test_output";
@@ -16,18 +16,18 @@ fn setup_test_environment() -> PcapResult<()> {
     let base_path = Path::new(TEST_BASE_PATH);
     if base_path.exists() {
         fs::remove_dir_all(base_path)
-            .map_err(|e| pcap_io::PcapError::Io(e))?;
+            .map_err(|e| pcapfile_io::PcapError::Io(e))?;
     }
     fs::create_dir_all(base_path)
-        .map_err(|e| pcap_io::PcapError::Io(e))?;
+        .map_err(|e| pcapfile_io::PcapError::Io(e))?;
 
     let dataset_path = base_path.join(TEST_DATASET_NAME);
     if dataset_path.exists() {
         fs::remove_dir_all(&dataset_path)
-            .map_err(|e| pcap_io::PcapError::Io(e))?;
+            .map_err(|e| pcapfile_io::PcapError::Io(e))?;
     }
     fs::create_dir_all(&dataset_path)
-        .map_err(|e| pcap_io::PcapError::Io(e))?;
+        .map_err(|e| pcapfile_io::PcapError::Io(e))?;
 
     Ok(())
 }

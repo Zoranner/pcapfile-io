@@ -9,4 +9,6 @@ pub mod types;
 pub use manager::IndexManager;
 
 // 重新导出数据结构
-pub use types::{PacketIndexEntry, PcapFileIndex, PidxIndex};
+pub use types::{
+    PacketIndexEntry, PcapFileIndex, PidxIndex,
+};

@@ -472,7 +472,9 @@ impl PcapReader {
     }
 
     /// 确保当前文件已打开
-    fn ensure_current_file_open(&mut self) -> PcapResult<()> {
+    fn ensure_current_file_open(
+        &mut self,
+    ) -> PcapResult<()> {
         if self.current_reader.is_none() {
             let index = self
                 .index_manager
@@ -492,11 +494,11 @@ impl PcapReader {
 }
 
 impl Drop for PcapReader {
-  fn drop(&mut self) {
-      // 关闭当前文件读取器
-      if let Some(ref mut reader) = self.current_reader {
-          reader.close();
-      }
-      debug!("PcapReader已清理");
-  }
+    fn drop(&mut self) {
+        // 关闭当前文件读取器
+        if let Some(ref mut reader) = self.current_reader {
+            reader.close();
+        }
+        debug!("PcapReader已清理");
+    }
 }

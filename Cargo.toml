@@ -32,7 +32,7 @@ no_std = []
 async = ["tokio"]
 
 [lib]
-name = "pcap_io"
+name = "pcapfile_io"
 path = "src/lib.rs"
 
 [[example]]

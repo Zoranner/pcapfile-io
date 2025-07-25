@@ -31,21 +31,32 @@ impl PcapFileHeader {
             major_version: constants::MAJOR_VERSION,
             minor_version: constants::MINOR_VERSION,
             timezone_offset,
-            timestamp_accuracy: Self::DEFAULT_TIMESTAMP_ACCURACY,
+            timestamp_accuracy:
+                Self::DEFAULT_TIMESTAMP_ACCURACY,
         }
     }
 
     /// 从字节数组创建文件头
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+    pub fn from_bytes(
+        bytes: &[u8],
+    ) -> Result<Self, String> {
         if bytes.len() < Self::HEADER_SIZE {
             return Err("字节数组长度不足".to_string());
         }
 
-        let magic_number = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-        let major_version = u16::from_le_bytes([bytes[4], bytes[5]]);
-        let minor_version = u16::from_le_bytes([bytes[6], bytes[7]]);
-        let timezone_offset = i32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
-        let timestamp_accuracy = u32::from_le_bytes([bytes[12], bytes[13], bytes[14], bytes[15]]);
+        let magic_number = u32::from_le_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3],
+        ]);
+        let major_version =
+            u16::from_le_bytes([bytes[4], bytes[5]]);
+        let minor_version =
+            u16::from_le_bytes([bytes[6], bytes[7]]);
+        let timezone_offset = i32::from_le_bytes([
+            bytes[8], bytes[9], bytes[10], bytes[11],
+        ]);
+        let timestamp_accuracy = u32::from_le_bytes([
+            bytes[12], bytes[13], bytes[14], bytes[15],
+        ]);
 
         Ok(Self {
             magic_number,
@@ -58,20 +69,33 @@ impl PcapFileHeader {
 
     /// 转换为字节数组
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(Self::HEADER_SIZE);
-        bytes.extend_from_slice(&self.magic_number.to_le_bytes());
-        bytes.extend_from_slice(&self.major_version.to_le_bytes());
-        bytes.extend_from_slice(&self.minor_version.to_le_bytes());
-        bytes.extend_from_slice(&self.timezone_offset.to_le_bytes());
-        bytes.extend_from_slice(&self.timestamp_accuracy.to_le_bytes());
+        let mut bytes =
+            Vec::with_capacity(Self::HEADER_SIZE);
+        bytes.extend_from_slice(
+            &self.magic_number.to_le_bytes(),
+        );
+        bytes.extend_from_slice(
+            &self.major_version.to_le_bytes(),
+        );
+        bytes.extend_from_slice(
+            &self.minor_version.to_le_bytes(),
+        );
+        bytes.extend_from_slice(
+            &self.timezone_offset.to_le_bytes(),
+        );
+        bytes.extend_from_slice(
+            &self.timestamp_accuracy.to_le_bytes(),
+        );
         bytes
     }
 
     /// 验证文件头是否有效
     pub fn is_valid(&self) -> bool {
         self.magic_number == constants::PCAP_MAGIC_NUMBER
-            && self.major_version == constants::MAJOR_VERSION
-            && self.minor_version == constants::MINOR_VERSION
+            && self.major_version
+                == constants::MAJOR_VERSION
+            && self.minor_version
+                == constants::MINOR_VERSION
     }
 }
 
@@ -99,8 +123,13 @@ impl DataPacketHeader {
         packet_length: u32,
         checksum: u32,
     ) -> Result<Self, String> {
-        if !DataPacket::is_valid_size(packet_length as usize) {
-            return Err(format!("无效的数据包长度: {}", packet_length));
+        if !DataPacket::is_valid_size(
+            packet_length as usize,
+        ) {
+            return Err(format!(
+                "无效的数据包长度: {}",
+                packet_length
+            ));
         }
 
         Ok(Self {
@@ -133,23 +162,43 @@ impl DataPacketHeader {
     }
 
     /// 从数据包数据创建头部
-    pub fn from_packet_data(capture_time: SystemTime, packet_data: &[u8]) -> Result<Self, String> {
-        let checksum = crate::foundation::utils::calculate_crc32(packet_data);
+    pub fn from_packet_data(
+        capture_time: SystemTime,
+        packet_data: &[u8],
+    ) -> Result<Self, String> {
+        let checksum =
+            crate::foundation::utils::calculate_crc32(
+                packet_data,
+            );
         let packet_length = packet_data.len() as u32;
 
-        Self::from_datetime(capture_time, packet_length, checksum)
+        Self::from_datetime(
+            capture_time,
+            packet_length,
+            checksum,
+        )
     }
 
     /// 从字节数组创建头部
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
+    pub fn from_bytes(
+        bytes: &[u8],
+    ) -> Result<Self, String> {
         if bytes.len() < Self::HEADER_SIZE {
             return Err("字节数组长度不足".to_string());
         }
 
-        let timestamp_seconds = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-        let timestamp_nanoseconds = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
-        let packet_length = u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
-        let checksum = u32::from_le_bytes([bytes[12], bytes[13], bytes[14], bytes[15]]);
+        let timestamp_seconds = u32::from_le_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3],
+        ]);
+        let timestamp_nanoseconds = u32::from_le_bytes([
+            bytes[4], bytes[5], bytes[6], bytes[7],
+        ]);
+        let packet_length = u32::from_le_bytes([
+            bytes[8], bytes[9], bytes[10], bytes[11],
+        ]);
+        let checksum = u32::from_le_bytes([
+            bytes[12], bytes[13], bytes[14], bytes[15],
+        ]);
 
         Self::new(
             timestamp_seconds,
@@ -161,18 +210,30 @@ impl DataPacketHeader {
 
     /// 转换为字节数组
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(Self::HEADER_SIZE);
-        bytes.extend_from_slice(&self.timestamp_seconds.to_le_bytes());
-        bytes.extend_from_slice(&self.timestamp_nanoseconds.to_le_bytes());
-        bytes.extend_from_slice(&self.packet_length.to_le_bytes());
-        bytes.extend_from_slice(&self.checksum.to_le_bytes());
+        let mut bytes =
+            Vec::with_capacity(Self::HEADER_SIZE);
+        bytes.extend_from_slice(
+            &self.timestamp_seconds.to_le_bytes(),
+        );
+        bytes.extend_from_slice(
+            &self.timestamp_nanoseconds.to_le_bytes(),
+        );
+        bytes.extend_from_slice(
+            &self.packet_length.to_le_bytes(),
+        );
+        bytes.extend_from_slice(
+            &self.checksum.to_le_bytes(),
+        );
         bytes
     }
 
     /// 获取捕获时间
     pub fn capture_time(&self) -> SystemTime {
         UNIX_EPOCH
-            + std::time::Duration::new(self.timestamp_seconds as u64, self.timestamp_nanoseconds)
+            + std::time::Duration::new(
+                self.timestamp_seconds as u64,
+                self.timestamp_nanoseconds,
+            )
     }
 }
 
@@ -187,17 +248,28 @@ pub struct DataPacket {
 
 impl DataPacket {
     /// 创建新的数据包
-    pub fn new(header: DataPacketHeader, data: Vec<u8>) -> Result<Self, String> {
+    pub fn new(
+        header: DataPacketHeader,
+        data: Vec<u8>,
+    ) -> Result<Self, String> {
         if data.len() != header.packet_length as usize {
-            return Err("数据长度与头部长度不匹配".to_string());
+            return Err(
+                "数据长度与头部长度不匹配".to_string()
+            );
         }
 
         Ok(Self { header, data })
     }
 
     /// 从DateTime和数据创建数据包
-    pub fn from_datetime(capture_time: SystemTime, data: Vec<u8>) -> Result<Self, String> {
-        let header = DataPacketHeader::from_packet_data(capture_time, &data)?;
+    pub fn from_datetime(
+        capture_time: SystemTime,
+        data: Vec<u8>,
+    ) -> Result<Self, String> {
+        let header = DataPacketHeader::from_packet_data(
+            capture_time,
+            &data,
+        )?;
         Self::new(header, data)
     }
 
@@ -207,7 +279,10 @@ impl DataPacket {
         timestamp_nanoseconds: u32,
         data: Vec<u8>,
     ) -> Result<Self, String> {
-        let checksum = crate::foundation::utils::calculate_crc32(&data);
+        let checksum =
+            crate::foundation::utils::calculate_crc32(
+                &data,
+            );
         let packet_length = data.len() as u32;
 
         let header = DataPacketHeader::new(
@@ -246,7 +321,8 @@ impl DataPacket {
             .capture_time()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default();
-        duration.as_secs() * 1_000_000_000 + duration.subsec_nanos() as u64
+        duration.as_secs() * 1_000_000_000
+            + duration.subsec_nanos() as u64
     }
 
     /// 验证数据包大小是否有效
@@ -260,13 +336,17 @@ impl DataPacket {
             return false;
         }
 
-        let calculated_checksum = crate::foundation::utils::calculate_crc32(&self.data);
+        let calculated_checksum =
+            crate::foundation::utils::calculate_crc32(
+                &self.data,
+            );
         calculated_checksum == self.header.checksum
     }
 
     /// 转换为字节数组（头部 + 数据）
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(self.total_size());
+        let mut bytes =
+            Vec::with_capacity(self.total_size());
         bytes.extend_from_slice(&self.header.to_bytes());
         bytes.extend_from_slice(&self.data);
         bytes
@@ -274,7 +354,10 @@ impl DataPacket {
 }
 
 impl std::fmt::Display for DataPacket {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         write!(
             f,
             "DataPacket {{ timestamp: {:?}, length: {}, checksum: 0x{:08X} }}",
@@ -314,7 +397,10 @@ pub struct DatasetInfo {
 
 impl DatasetInfo {
     /// 创建新的数据集信息
-    pub fn new<P: AsRef<std::path::Path>>(name: String, path: P) -> Self {
+    pub fn new<P: AsRef<std::path::Path>>(
+        name: String,
+        path: P,
+    ) -> Self {
         use chrono::Utc;
 
         Self {
@@ -390,7 +476,9 @@ pub struct FileInfo {
 
 impl FileInfo {
     /// 创建新的文件信息
-    pub fn new<P: AsRef<std::path::Path>>(file_path: P) -> Self {
+    pub fn new<P: AsRef<std::path::Path>>(
+        file_path: P,
+    ) -> Self {
         use chrono::Utc;
 
         let path = file_path.as_ref();
@@ -415,7 +503,9 @@ impl FileInfo {
     }
 
     /// 从文件系统获取基本信息
-    pub fn from_file<P: AsRef<std::path::Path>>(file_path: P) -> Result<Self, std::io::Error> {
+    pub fn from_file<P: AsRef<std::path::Path>>(
+        file_path: P,
+    ) -> Result<Self, std::io::Error> {
         use chrono::{DateTime, Utc};
 
         let path = file_path.as_ref();
@@ -429,12 +519,16 @@ impl FileInfo {
 
         let created_time = metadata
             .created()
-            .map(|time| DateTime::<Utc>::from(time).to_rfc3339())
+            .map(|time| {
+                DateTime::<Utc>::from(time).to_rfc3339()
+            })
             .unwrap_or_else(|_| Utc::now().to_rfc3339());
 
         let modified_time = metadata
             .modified()
-            .map(|time| DateTime::<Utc>::from(time).to_rfc3339())
+            .map(|time| {
+                DateTime::<Utc>::from(time).to_rfc3339()
+            })
             .unwrap_or_else(|_| Utc::now().to_rfc3339());
 
         Ok(Self {
@@ -473,11 +567,14 @@ impl FileInfo {
     }
 
     /// 计算并设置文件哈希值
-    pub fn calculate_hash(&mut self) -> Result<(), std::io::Error> {
+    pub fn calculate_hash(
+        &mut self,
+    ) -> Result<(), std::io::Error> {
         use sha2::{Digest, Sha256};
         use std::io::Read;
 
-        let mut file = std::fs::File::open(&self.file_path)?;
+        let mut file =
+            std::fs::File::open(&self.file_path)?;
         let mut hasher = Sha256::new();
         let mut buffer = [0; 8192];
 
@@ -489,7 +586,8 @@ impl FileInfo {
             hasher.update(&buffer[..bytes_read]);
         }
 
-        self.file_hash = Some(format!("{:x}", hasher.finalize()));
+        self.file_hash =
+            Some(format!("{:x}", hasher.finalize()));
         Ok(())
     }
 }

@@ -31,7 +31,7 @@ pcapfile-io = "0.1.0"
 ### 基本使用
 
 ```rust
-use pcap_io::{
+use pcapfile_io::{
     Configuration, DataPacket, Reader, Writer, Result,
 };
 
@@ -64,7 +64,7 @@ fn main() -> Result<()> {
 ### 批量操作
 
 ```rust
-use pcap_io::{Configuration, DataPacket, Writer, Result};
+use pcapfile_io::{Configuration, DataPacket, Writer, Result};
 
 fn batch_operations() -> Result<()> {
     let config = Configuration::default();

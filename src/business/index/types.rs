@@ -95,23 +95,31 @@ impl PidxIndex {
             .map(|f| f.end_timestamp)
             .max()
             .unwrap_or(0);
-        self.total_duration = if self.end_timestamp > self.start_timestamp {
-            self.end_timestamp - self.start_timestamp
-        } else {
-            0
-        };
+        self.total_duration =
+            if self.end_timestamp > self.start_timestamp {
+                self.end_timestamp - self.start_timestamp
+            } else {
+                0
+            };
     }
 
     pub fn update_total_packets(&mut self) {
-        self.total_packets = self.data_files.files.iter().map(|f| f.packet_count).sum();
+        self.total_packets = self
+            .data_files
+            .files
+            .iter()
+            .map(|f| f.packet_count)
+            .sum();
     }
 
     pub fn build_timestamp_index(&mut self) {
         self.timestamp_index.clear();
         for file_index in &self.data_files.files {
             for packet in &file_index.data_packets {
-                self.timestamp_index
-                    .insert(packet.timestamp_ns, packet.clone());
+                self.timestamp_index.insert(
+                    packet.timestamp_ns,
+                    packet.clone(),
+                );
             }
         }
         log::debug!(
@@ -120,7 +128,10 @@ impl PidxIndex {
         );
     }
 
-    pub fn find_packet_by_timestamp(&self, timestamp_ns: u64) -> Option<&PacketIndexEntry> {
+    pub fn find_packet_by_timestamp(
+        &self,
+        timestamp_ns: u64,
+    ) -> Option<&PacketIndexEntry> {
         for file_index in &self.data_files.files {
             for packet in &file_index.data_packets {
                 if packet.timestamp_ns == timestamp_ns {
@@ -130,12 +141,18 @@ impl PidxIndex {
         }
         None
     }
-    
-    pub fn get_packets_in_range(&self, start_ns: u64, end_ns: u64) -> Vec<&PacketIndexEntry> {
+
+    pub fn get_packets_in_range(
+        &self,
+        start_ns: u64,
+        end_ns: u64,
+    ) -> Vec<&PacketIndexEntry> {
         let mut packets = Vec::new();
         for file_index in &self.data_files.files {
             for packet in &file_index.data_packets {
-                if packet.timestamp_ns >= start_ns && packet.timestamp_ns <= end_ns {
+                if packet.timestamp_ns >= start_ns
+                    && packet.timestamp_ns <= end_ns
+                {
                     packets.push(packet);
                 }
             }

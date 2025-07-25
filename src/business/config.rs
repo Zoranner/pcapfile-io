@@ -40,7 +40,9 @@ impl CommonConfig {
     /// 验证通用配置的有效性
     pub fn validate(&self) -> Result<(), String> {
         if self.buffer_size < 1024 {
-            return Err("缓冲区大小不能小于1024字节".to_string());
+            return Err(
+                "缓冲区大小不能小于1024字节".to_string()
+            );
         }
 
         if self.buffer_size > constants::MAX_BUFFER_SIZE {
@@ -51,10 +53,13 @@ impl CommonConfig {
         }
 
         if self.max_packet_size == 0 {
-            return Err("最大数据包大小必须大于0".to_string());
+            return Err(
+                "最大数据包大小必须大于0".to_string()
+            );
         }
 
-        if self.max_packet_size > constants::MAX_PACKET_SIZE {
+        if self.max_packet_size > constants::MAX_PACKET_SIZE
+        {
             return Err(format!(
                 "最大数据包大小不能超过{}字节",
                 constants::MAX_PACKET_SIZE
@@ -132,8 +137,11 @@ impl Default for WriterConfig {
     fn default() -> Self {
         Self {
             common: CommonConfig::default(),
-            max_packets_per_file: constants::DEFAULT_MAX_PACKETS_PER_FILE,
-            file_name_format: constants::DEFAULT_FILE_NAME_FORMAT.to_string(),
+            max_packets_per_file:
+                constants::DEFAULT_MAX_PACKETS_PER_FILE,
+            file_name_format:
+                constants::DEFAULT_FILE_NAME_FORMAT
+                    .to_string(),
             auto_flush: true,
             write_timeout: 30000,
             index_flush_interval: 5000,
@@ -149,7 +157,8 @@ impl WriterConfig {
 
         // 验证写入器特有配置
         if self.max_packets_per_file == 0 {
-            return Err("每个文件最大数据包数量必须大于0".to_string());
+            return Err("每个文件最大数据包数量必须大于0"
+                .to_string());
         }
 
         if self.file_name_format.is_empty() {
@@ -227,5 +236,3 @@ impl WriterConfig {
         config
     }
 }
-
-

@@ -4,7 +4,9 @@ use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use crate::business::config::CommonConfig;
-use crate::data::models::{DataPacket, DataPacketHeader, PcapFileHeader};
+use crate::data::models::{
+    DataPacket, DataPacketHeader, PcapFileHeader,
+};
 use crate::foundation::error::{PcapError, PcapResult};
 use crate::foundation::utils::calculate_crc32;
 
@@ -39,16 +41,26 @@ impl PcapFileReader {
     }
 
     /// 打开PCAP文件
-    pub(crate) fn open<P: AsRef<Path>>(&mut self, file_path: P) -> PcapResult<()> {
+    pub(crate) fn open<P: AsRef<Path>>(
+        &mut self,
+        file_path: P,
+    ) -> PcapResult<()> {
         let path = file_path.as_ref();
 
         if !path.exists() {
-            return Err(PcapError::FileNotFound(format!("文件不存在: {:?}", path)));
+            return Err(PcapError::FileNotFound(format!(
+                "文件不存在: {:?}",
+                path
+            )));
         }
 
-        let file = File::open(path).map_err(|e| PcapError::Io(e))?;
+        let file = File::open(path)
+            .map_err(|e| PcapError::Io(e))?;
 
-        let file_size = file.metadata().map_err(|e| PcapError::Io(e))?.len();
+        let file_size = file
+            .metadata()
+            .map_err(|e| PcapError::Io(e))?
+            .len();
 
         if file_size < PcapFileHeader::HEADER_SIZE as u64 {
             return Err(PcapError::InvalidFormat(
@@ -56,12 +68,21 @@ impl PcapFileReader {
             ));
         }
 
-        let mut reader = BufReader::with_capacity(self.configuration.buffer_size, file);
+        let mut reader = BufReader::with_capacity(
+            self.configuration.buffer_size,
+            file,
+        );
 
         // 读取并验证文件头
-        let header = self.read_and_validate_header(&mut reader)?;
+        let header =
+            self.read_and_validate_header(&mut reader)?;
 
-        self.file = Some(reader.get_ref().try_clone().map_err(|e| PcapError::Io(e))?);
+        self.file = Some(
+            reader
+                .get_ref()
+                .try_clone()
+                .map_err(|e| PcapError::Io(e))?,
+        );
         self.reader = Some(reader);
         self.file_path = Some(path.to_path_buf());
         self.file_size = file_size;
@@ -74,49 +95,69 @@ impl PcapFileReader {
     }
 
     /// 读取并验证文件头
-    fn read_and_validate_header(&self, reader: &mut BufReader<File>) -> PcapResult<PcapFileHeader> {
-        let mut header_bytes = [0u8; PcapFileHeader::HEADER_SIZE];
+    fn read_and_validate_header(
+        &self,
+        reader: &mut BufReader<File>,
+    ) -> PcapResult<PcapFileHeader> {
+        let mut header_bytes =
+            [0u8; PcapFileHeader::HEADER_SIZE];
         reader
             .read_exact(&mut header_bytes)
             .map_err(|e| PcapError::Io(e))?;
 
         let header =
-            PcapFileHeader::from_bytes(&header_bytes).map_err(|e| PcapError::InvalidFormat(e))?;
+            PcapFileHeader::from_bytes(&header_bytes)
+                .map_err(|e| PcapError::InvalidFormat(e))?;
 
         if !header.is_valid() {
-            return Err(PcapError::InvalidFormat("无效的PCAP文件头".to_string()));
+            return Err(PcapError::InvalidFormat(
+                "无效的PCAP文件头".to_string(),
+            ));
         }
 
         Ok(header)
     }
 
     /// 读取下一个数据包
-    pub(crate) fn read_packet(&mut self) -> PcapResult<Option<DataPacket>> {
-        let reader = self
-            .reader
-            .as_mut()
-            .ok_or_else(|| PcapError::InvalidState(ERR_FILE_NOT_OPEN.to_string()))?;
+    pub(crate) fn read_packet(
+        &mut self,
+    ) -> PcapResult<Option<DataPacket>> {
+        let reader =
+            self.reader.as_mut().ok_or_else(|| {
+                PcapError::InvalidState(
+                    ERR_FILE_NOT_OPEN.to_string(),
+                )
+            })?;
 
         // 读取数据包头部
-        let mut header_bytes = [0u8; DataPacketHeader::HEADER_SIZE];
+        let mut header_bytes =
+            [0u8; DataPacketHeader::HEADER_SIZE];
         match reader.read_exact(&mut header_bytes) {
             Ok(_) => {}
-            Err(ref e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+            Err(ref e)
+                if e.kind()
+                    == io::ErrorKind::UnexpectedEof =>
+            {
                 return Ok(None); // 到达文件末尾
             }
             Err(e) => return Err(PcapError::Io(e)),
         }
 
         let header =
-            DataPacketHeader::from_bytes(&header_bytes).map_err(|e| PcapError::InvalidFormat(e))?;
+            DataPacketHeader::from_bytes(&header_bytes)
+                .map_err(|e| PcapError::InvalidFormat(e))?;
 
         // 读取数据包内容
-        let mut data = vec![0u8; header.packet_length as usize];
-        reader.read_exact(&mut data).map_err(|e| PcapError::Io(e))?;
+        let mut data =
+            vec![0u8; header.packet_length as usize];
+        reader
+            .read_exact(&mut data)
+            .map_err(|e| PcapError::Io(e))?;
 
         // 验证校验和
         if self.configuration.enable_validation {
-            let calculated_checksum = calculate_crc32(&data);
+            let calculated_checksum =
+                calculate_crc32(&data);
             if calculated_checksum != header.checksum {
                 return Err(PcapError::CorruptedData(format!(
                     "{}。期望: 0x{:08X}, 实际: 0x{:08X}",
@@ -127,22 +168,29 @@ impl PcapFileReader {
 
         self.packet_count += 1;
 
-        let packet = DataPacket::new(header, data).map_err(|e| PcapError::InvalidFormat(e))?;
+        let packet = DataPacket::new(header, data)
+            .map_err(|e| PcapError::InvalidFormat(e))?;
 
-        debug!("已读取数据包，当前计数: {}", self.packet_count);
+        debug!(
+            "已读取数据包，当前计数: {}",
+            self.packet_count
+        );
         Ok(Some(packet))
     }
 
     /// 重置读取位置到数据区开始位置
     pub(crate) fn reset(&mut self) -> PcapResult<()> {
-        let reader = self
-            .reader
-            .as_mut()
-            .ok_or_else(|| PcapError::InvalidState(ERR_FILE_NOT_OPEN.to_string()))?;
+        let reader =
+            self.reader.as_mut().ok_or_else(|| {
+                PcapError::InvalidState(
+                    ERR_FILE_NOT_OPEN.to_string(),
+                )
+            })?;
 
         reader
             .seek(SeekFrom::Start(
-                self.header_position + PcapFileHeader::HEADER_SIZE as u64,
+                self.header_position
+                    + PcapFileHeader::HEADER_SIZE as u64,
             ))
             .map_err(|e| PcapError::Io(e))?;
 
@@ -152,18 +200,26 @@ impl PcapFileReader {
     }
 
     /// 移动到指定的字节位置
-    pub(crate) fn seek(&mut self, position: u64) -> PcapResult<()> {
-        let reader = self
-            .reader
-            .as_mut()
-            .ok_or_else(|| PcapError::InvalidState(ERR_FILE_NOT_OPEN.to_string()))?;
+    pub(crate) fn seek(
+        &mut self,
+        position: u64,
+    ) -> PcapResult<()> {
+        let reader =
+            self.reader.as_mut().ok_or_else(|| {
+                PcapError::InvalidState(
+                    ERR_FILE_NOT_OPEN.to_string(),
+                )
+            })?;
 
-        let min_position = self.header_position + PcapFileHeader::HEADER_SIZE as u64;
+        let min_position = self.header_position
+            + PcapFileHeader::HEADER_SIZE as u64;
         if position < min_position {
-            return Err(PcapError::InvalidArgument(format!(
-                "位置不能小于数据区开始位置: {}",
-                min_position
-            )));
+            return Err(PcapError::InvalidArgument(
+                format!(
+                    "位置不能小于数据区开始位置: {}",
+                    min_position
+                ),
+            ));
         }
 
         reader
@@ -212,7 +268,12 @@ impl PcapFileReader {
                 && reader
                     .get_ref()
                     .metadata()
-                    .map(|m| reader.stream_position().unwrap_or(0) >= m.len())
+                    .map(|m| {
+                        reader
+                            .stream_position()
+                            .unwrap_or(0)
+                            >= m.len()
+                    })
                     .unwrap_or(true)
         } else {
             true
@@ -220,13 +281,19 @@ impl PcapFileReader {
     }
 
     /// 获取当前读取位置（内部使用）
-    pub(crate) fn current_position(&mut self) -> PcapResult<u64> {
-        let reader = self
-            .reader
-            .as_mut()
-            .ok_or_else(|| PcapError::InvalidState(ERR_FILE_NOT_OPEN.to_string()))?;
+    pub(crate) fn current_position(
+        &mut self,
+    ) -> PcapResult<u64> {
+        let reader =
+            self.reader.as_mut().ok_or_else(|| {
+                PcapError::InvalidState(
+                    ERR_FILE_NOT_OPEN.to_string(),
+                )
+            })?;
 
-        reader.stream_position().map_err(|e| PcapError::Io(e))
+        reader
+            .stream_position()
+            .map_err(|e| PcapError::Io(e))
     }
 }
 

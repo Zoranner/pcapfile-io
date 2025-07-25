@@ -2,7 +2,7 @@
 //!
 //! 测试大规模数据（10万个数据包）的写入读取功能和性能
 
-use pcap_io::{
+use pcapfile_io::{
     DataPacket, PcapReader, PcapResult, PcapWriter,
     WriterConfig,
 };
@@ -36,7 +36,7 @@ fn write_large_dataset(
     let config = WriterConfig {
         max_packets_per_file: 2000,
         auto_flush: false,
-        common: pcap_io::CommonConfig {
+        common: pcapfile_io::CommonConfig {
             buffer_size: 64 * 1024, // 64KB
             index_cache_size: 5000,
             enable_index_cache: true,
@@ -194,7 +194,7 @@ fn test_large_dataset_memory_usage() {
     let config = WriterConfig {
         max_packets_per_file: 100,
         auto_flush: true,
-        common: pcap_io::CommonConfig {
+        common: pcapfile_io::CommonConfig {
             buffer_size: 2048, // 2KB
             index_cache_size: 100,
             enable_index_cache: false,

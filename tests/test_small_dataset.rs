@@ -2,7 +2,7 @@
 //!
 //! 测试基本的读写功能和索引生成
 
-use pcap_io::{
+use pcapfile_io::{
     DataPacket, PcapReader, PcapResult, PcapWriter,
     ReaderConfig, WriterConfig,
 };
