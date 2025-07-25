@@ -9,7 +9,7 @@ on:
       - 'v*'
 
 jobs:
-  test:
+  common-test:
     name: Run Tests
     runs-on: ubuntu-latest
     steps:
@@ -44,16 +44,14 @@ jobs:
 
   publish-cargo:
     name: Publish to crates.io
-    needs: test
+    needs: common-test
     uses: ./.github/workflows/cargo-publish.yml
-    with:
-      skip_tests: true
     secrets: inherit
 
   release-github:
     name: Release to GitHub
-    needs: test
+    needs: common-test
     uses: ./.github/workflows/github-release.yml
-    with:
-      skip_tests: true
+    permissions:
+      contents: write
     secrets: inherit 
