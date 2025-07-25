@@ -1,0 +1,363 @@
+---
+alwaysApply: true
+---
+# 代码风格和工程开发规范
+
+## 🎨 命名和风格约定
+
+### Rust 标准命名规范
+
+严格遵循 Rust 官方命名约定：
+
+```rust
+// ✅ 类型命名：PascalCase
+pub struct DataProcessor {}
+pub enum ProcessState {}
+pub trait Configurable {}
+
+// ✅ 函数和变量：snake_case
+pub fn process_data() -> Result<()> {}
+let file_path = PathBuf::new();
+let mut buffer_size = 8192;
+
+// ✅ 常量：UPPER_SNAKE_CASE
+pub const DEFAULT_BUFFER_SIZE: usize = 8192;
+const MAX_RETRY_ATTEMPTS: u32 = 3;
+
+// ✅ 模块：snake_case
+mod file_processor;
+mod data_manager;
+
+// ✅ 生命周期参数：小写字母
+fn process_data<'a>(input: &'a str) -> &'a str {}
+```
+
+### 可见性控制原则
+
+精确控制模块和字段的可见性：
+
+```rust
+// ✅ 公共 API - 谨慎暴露
+pub struct PublicService {}        // 用户直接使用
+pub fn public_api() -> Result<()> {} // 对外功能
+
+// ✅ 内部实现 - 合理限制
+pub(crate) struct InternalHelper {} // 当前 crate 可见
+pub(super) fn helper_function() {}   // 父模块可见
+
+// ✅ 私有实现 - 默认隐藏
+struct PrivateImpl {}               // 仅当前模块
+fn internal_logic() {}              // 内部实现
+
+// ✅ 字段可见性 - 精确控制
+pub struct ConfiguredService {
+    pub name: String,                    // 用户可访问
+    pub(crate) internal_state: State,   // 模块内访问
+    config: ServiceConfig,               // 私有配置
+}
+```
+
+## 📝 注释和文档规范
+
+### 中文文档注释标准
+
+所有公共 API 必须有完整的中文文档：
+
+````rust
+/// 高性能数据处理器
+///
+/// 提供数据的读取、处理、验证和输出功能。支持多种数据格式，
+/// 具备自动错误恢复机制和性能优化策略。
+///
+/// # 特性
+/// - 支持批量操作以提高处理效率
+/// - 自动资源管理，无需手动清理
+/// - 可配置的缓存策略和超时控制
+/// - 内置数据验证和错误恢复机制
+///
+/// # 性能特点
+/// - 零拷贝操作减少内存分配
+/// - 预分配缓冲区避免频繁扩容
+/// - 批量处理减少系统调用开销
+///
+/// # 示例
+/// ```rust
+/// use my_crate::{DataProcessor, ProcessConfig};
+///
+/// let config = ProcessConfig::high_performance();
+/// let mut processor = DataProcessor::new(config)?;
+///
+/// let input_data = load_test_data();
+/// let result = processor.process_batch(&input_data)?;
+///
+/// println!("处理了 {} 条记录", result.processed_count);
+/// ```
+///
+/// # 错误处理
+/// 所有方法都返回 `Result` 类型，主要错误包括：
+/// - `ProcessError::InvalidInput` - 输入数据格式无效
+/// - `ProcessError::ResourceLimit` - 超出资源限制
+/// - `ProcessError::Timeout` - 操作超时
+pub struct DataProcessor {
+    config: ProcessConfig,
+    // 其他字段...
+}
+
+/// 处理单批数据并返回处理结果
+///
+/// 该方法会验证输入数据格式，执行配置的处理流程，
+/// 并返回详细的处理统计信息。
+///
+/// # 参数
+/// * `input_data` - 待处理的输入数据切片，不会修改原数据
+/// * `options` - 处理选项，覆盖默认配置中的相应设置
+///
+/// # 返回值
+/// * `Ok(ProcessResult)` - 包含处理统计和结果数据
+/// * `Err(ProcessError)` - 处理过程中遇到的错误
+///
+/// # 性能说明
+/// - 输入数据通过引用传递，避免不必要的复制
+/// - 内部使用批量处理以提高效率
+/// - 预分配输出缓冲区以减少内存重分配
+///
+/// # 示例
+/// ```rust
+/// let options = ProcessOptions::default()
+///     .with_validation(true)
+///     .with_timeout(Duration::from_secs(30));
+///
+/// match processor.process_batch(&data, options) {
+///     Ok(result) => println!("成功处理 {} 条记录", result.count),
+///     Err(e) => eprintln!("处理失败: {}", e),
+/// }
+/// ```
+pub fn process_batch(
+    &mut self,
+    input_data: &[InputItem],
+    options: ProcessOptions
+) -> Result<ProcessResult, ProcessError> {
+    // 实现细节...
+}
+````
+
+### 代码内注释规范
+
+代码内使用简洁的中文注释说明关键逻辑：
+
+```rust
+impl DataProcessor {
+    pub fn new(config: ProcessConfig) -> Result<Self, ProcessError> {
+        // 验证配置参数的有效性
+        config.validate().map_err(|e| ProcessError::InvalidConfig(e))?;
+
+        // 根据配置创建内部组件
+        let cache = if config.enable_cache {
+            Some(DataCache::with_capacity(config.cache_size))
+        } else {
+            None
+        };
+
+        // 初始化处理器状态
+        let processor = Self {
+            config,
+            cache,
+            stats: ProcessStats::new(),
+            // 预分配工作缓冲区以提高性能
+            work_buffer: Vec::with_capacity(config.buffer_size),
+        };
+
+        log::info!("数据处理器初始化完成，配置: {:?}", processor.config);
+        Ok(processor)
+    }
+}
+```
+
+## ⚠️ 错误处理规范
+
+### 统一错误类型设计
+
+使用 `thiserror` 创建清晰的错误层次：
+
+```rust
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ProcessError {
+    #[error("输入数据无效: {details}")]
+    InvalidInput { details: String },
+
+    #[error("配置错误: {message}")]
+    InvalidConfig { message: String },
+
+    #[error("I/O 操作失败: {source}")]
+    IoError {
+        #[from]
+        source: std::io::Error
+    },
+
+    #[error("处理超时，期望在 {timeout_secs} 秒内完成")]
+    Timeout { timeout_secs: u64 },
+
+    #[error("资源不足: {resource} 当前使用 {current}，限制 {limit}")]
+    ResourceLimit {
+        resource: String,
+        current: usize,
+        limit: usize,
+    },
+}
+
+// 项目统一的 Result 类型
+pub type Result<T> = std::result::Result<T, ProcessError>;
+```
+
+### 分层错误处理策略
+
+在不同层次进行适当的错误转换和上下文添加：
+
+```rust
+// 数据访问层：转换底层错误
+impl FileReader {
+    pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
+        std::fs::read(&path).map_err(|io_err| {
+            ProcessError::IoError {
+                source: io_err
+            }
+        })
+    }
+}
+
+// 业务逻辑层：添加业务上下文
+impl DataProcessor {
+    pub fn load_input(&mut self, file_path: &Path) -> Result<InputData> {
+        // 尝试读取文件
+        let raw_data = FileReader::read_file(file_path)
+            .map_err(|e| ProcessError::InvalidInput {
+                details: format!("无法读取输入文件 {:?}: {}", file_path, e)
+            })?;
+
+        // 解析数据格式
+        InputData::parse(&raw_data)
+            .map_err(|parse_err| ProcessError::InvalidInput {
+                details: format!("文件 {:?} 格式解析失败: {}", file_path, parse_err)
+            })
+    }
+}
+
+// API 层：提供用户友好的错误信息
+impl PublicApi {
+    pub fn process_file<P: AsRef<Path>>(&mut self, path: P) -> Result<ProcessResult> {
+        let path_ref = path.as_ref();
+
+        // 检查文件是否存在
+        if !path_ref.exists() {
+            return Err(ProcessError::InvalidInput {
+                details: format!("文件不存在: {:?}", path_ref)
+            });
+        }
+
+        // 执行处理逻辑
+        self.processor.load_input(path_ref)
+            .and_then(|input| self.processor.process(input))
+            .map_err(|e| {
+                log::error!("处理文件 {:?} 失败: {}", path_ref, e);
+                e
+            })
+    }
+}
+```
+
+### 错误恢复和降级策略
+
+```rust
+impl DataProcessor {
+    pub fn process_with_fallback(&mut self, input: InputData) -> Result<ProcessResult> {
+        // 尝试主要处理路径
+        match self.process_primary(&input) {
+            Ok(result) => Ok(result),
+            Err(ProcessError::ResourceLimit { .. }) => {
+                // 资源不足时降级到简化处理
+                log::warn!("资源不足，切换到简化处理模式");
+                self.process_simplified(&input)
+            },
+            Err(ProcessError::Timeout { .. }) => {
+                // 超时时尝试部分处理
+                log::warn!("处理超时，尝试部分处理");
+                self.process_partial(&input)
+            },
+            Err(other) => Err(other), // 其他错误直接返回
+        }
+    }
+}
+```
+
+## 🚀 性能优化规范
+
+### 内存使用优化
+
+```rust
+// ✅ 优先使用借用避免不必要的克隆
+impl DataContainer {
+    // 返回引用而不是拷贝
+    pub fn get_content(&self) -> &[u8] {
+        &self.content
+    }
+
+    // 使用 Cow 处理条件性修改
+    pub fn get_processed_content(&self) -> Cow<'_, [u8]> {
+        if self.needs_processing() {
+            Cow::Owned(self.process_content())
+        } else {
+            Cow::Borrowed(&self.content)
+        }
+    }
+}
+
+// ✅ 预分配容器容量
+pub fn collect_all_data(sources: &[DataSource]) -> Vec<DataItem> {
+    // 估算总容量避免重复分配
+    let estimated_capacity: usize = sources
+        .iter()
+        .map(|s| s.estimated_item_count())
+        .sum();
+
+    let mut items = Vec::with_capacity(estimated_capacity);
+
+    for source in sources {
+        items.extend(source.get_items());
+    }
+
+    items
+}
+
+// ✅ 使用合适的字符串类型
+pub fn process_text(input: &str) -> String {  // 参数用 &str，返回 String
+    // 处理逻辑
+    input.to_uppercase()
+}
+```
+
+### 零拷贝操作模式
+
+```rust
+// ✅ 设计避免不必要数据拷贝的接口
+pub trait ZeroCopyProcessor {
+    fn process_in_place(&mut self, data: &mut [u8]) -> Result<usize>;
+    fn process_slice(&self, input: &[u8], output: &mut [u8]) -> Result<usize>;
+}
+
+// ✅ 使用引用链避免中间分配
+pub fn chain_processors(
+    input: &[u8],
+    processors: &[Box<dyn ZeroCopyProcessor>]
+) -> Result<Vec<u8>> {
+    let mut current = input.to_vec(); // 只在开始时拷贝一次
+
+    for processor in processors {
+        let processed_len = processor.process_in_place(&mut current)?;
+        current.truncate(processed_len);
+    }
+
+    Ok(current)
+}
+```

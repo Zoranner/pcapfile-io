@@ -1,0 +1,263 @@
+---
+alwaysApply: true
+---
+# 系统架构设计原则规范
+
+## 🏗️ 分层架构设计
+
+### 标准四层架构
+
+严格遵循分层架构，确保系统的可维护性和可扩展性：
+
+```
+┌─────────────────────────────────────┐
+│    用户接口层 (API Layer)           │  ← 对外提供服务接口
+├─────────────────────────────────────┤
+│    业务逻辑层 (Business Layer)      │  ← 核心业务逻辑实现
+├─────────────────────────────────────┤
+│    数据访问层 (Data Layer)          │  ← 数据操作和格式处理
+├─────────────────────────────────────┤
+│    基础设施层 (Infrastructure)      │  ← 工具函数和通用组件
+└─────────────────────────────────────┘
+```
+
+### 层次职责定义
+
+**用户接口层** - 简洁的对外接口
+
+- 提供用户友好的 API
+- 隐藏内部实现复杂性
+- 处理参数验证和格式转换
+- 实现资源的自动化管理
+
+**业务逻辑层** - 核心功能实现
+
+- 具体业务规则和算法
+- 配置管理和策略控制
+- 缓存和索引等性能优化
+- 业务流程编排
+
+**数据访问层** - 数据操作抽象
+
+- 文件 I/O 和网络操作
+- 数据序列化/反序列化
+- 格式解析和生成
+- 底层存储操作
+
+**基础设施层** - 通用支撑服务
+
+- 错误类型定义和处理
+- 工具函数和扩展方法
+- 日志和监控支持
+- 类型定义和常量
+
+### 依赖管理原则
+
+**单向依赖规则**：
+
+- 上层可以依赖下层，严禁下层依赖上层
+- 同层模块间避免循环依赖
+- 通过接口抽象降低耦合度
+
+**依赖注入模式**：
+
+```rust
+// ✅ 通过参数注入依赖
+pub struct BusinessService<D: DataAccess> {
+    data_layer: D,
+}
+
+// ✅ 使用 trait 抽象依赖
+pub trait DataAccess {
+    fn read_data(&self, id: &str) -> Result<Data>;
+    fn write_data(&self, data: &Data) -> Result<()>;
+}
+```
+
+## 📁 模块组织规范
+
+### 标准目录结构
+
+```
+src/
+├── lib.rs                 # 模块声明和重导出
+├── api/                   # 用户接口层
+│   ├── mod.rs             # 接口模块统一导出
+│   ├── reader.rs          # 数据集读取器
+│   └── writer.rs          # 数据集写入器
+├── business/              # 业务逻辑层
+│   ├── mod.rs             # 业务模块统一导出
+│   ├── config.rs          # 配置管理和验证逻辑
+│   ├── cache.rs           # 文件信息缓存管理
+│   ├── index/             # 索引系统
+│   │   ├── mod.rs         # 索引模块入口
+│   │   ├── reader.rs      # 索引读取逻辑
+│   │   ├── writer.rs      # 索引写入逻辑
+│   │   └── types.rs       # 索引数据结构
+│   └── processor.rs       # 数据处理业务逻辑
+├── data/                  # 数据访问层
+│   ├── mod.rs             # 数据模块统一导出
+│   ├── models.rs          # 核心数据结构
+│   ├── file_reader.rs     # 单文件读取器
+│   ├── file_writer.rs     # 单文件写入器
+│   └── formats.rs         # 格式解析和生成
+└── foundation/            # 基础设施层
+    ├── mod.rs             # 基础模块统一导出
+    ├── error.rs           # 错误类型定义和处理
+    ├── traits.rs          # 核心 trait 定义
+    ├── utils.rs           # 通用工具函数
+    └── types.rs           # 公共类型和常量定义
+```
+
+### 模块职责规范
+
+**用户接口层 (`api/`)**：
+
+- 提供用户友好的 API 接口
+- 自动化资源管理和错误处理
+- 实现统一的 trait 接口
+
+**业务逻辑层 (`business/`)**：
+
+- 配置管理和验证逻辑
+- 缓存策略和性能优化
+- 业务流程编排和控制
+
+**数据访问层 (`data/`)**：
+
+- 底层文件 I/O 操作
+- 数据格式解析和生成
+- 数据模型定义
+
+**基础设施层 (`foundation/`)**：
+
+- 错误类型和处理机制
+- 通用工具函数
+- 核心接口定义
+
+## 🔌 接口设计原则
+
+### Trait 设计规范
+
+设计内聚、松耦合的接口：
+
+```rust
+// ✅ 职责单一的 trait
+pub trait Readable {
+    type Item;
+    type Error;
+
+    fn read_item(&mut self) -> Result<Option<Self::Item>, Self::Error>;
+    fn reset(&mut self) -> Result<(), Self::Error>;
+}
+
+pub trait Writable {
+    type Item;
+    type Error;
+
+    fn write_item(&mut self, item: &Self::Item) -> Result<(), Self::Error>;
+    fn flush(&mut self) -> Result<(), Self::Error>;
+}
+
+// ✅ 组合而非继承
+pub trait ReadWritable: Readable + Writable {}
+```
+
+### API 简化原则
+
+- **自动化管理**：资源初始化和清理自动化
+- **批量操作**：提供批量处理接口提升性能
+- **默认实现**：为 trait 提供合理的默认实现
+- **错误透明**：错误信息包含足够的上下文
+
+### 分层配置设计
+
+```rust
+// ✅ 分层配置结构
+#[derive(Debug, Clone)]
+pub struct Configuration {
+    pub api: ApiConfig,
+    pub business: BusinessConfig,
+    pub data: DataConfig,
+}
+
+// ✅ 预设配置模式
+impl Configuration {
+    pub fn development() -> Self { /* 开发环境配置 */ }
+    pub fn production() -> Self { /* 生产环境配置 */ }
+    pub fn high_performance() -> Self { /* 高性能配置 */ }
+    pub fn low_memory() -> Self { /* 低内存配置 */ }
+}
+
+// ✅ 分层配置验证
+impl Configuration {
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        self.api.validate()
+            .and_then(|_| self.business.validate())
+            .and_then(|_| self.data.validate())
+    }
+}
+```
+
+## 🔄 生命周期管理
+
+### 资源管理模式
+
+```rust
+// ✅ RAII 模式自动管理资源
+pub struct ResourceManager {
+    resources: Vec<Resource>,
+}
+
+impl ResourceManager {
+    pub fn new() -> Self {
+        Self {
+            resources: Vec::new(),
+        }
+    }
+}
+
+impl Drop for ResourceManager {
+    fn drop(&mut self) {
+        // 自动清理所有资源
+        for resource in &mut self.resources {
+            if let Err(e) = resource.cleanup() {
+                log::warn!("资源清理失败: {}", e);
+            }
+        }
+    }
+}
+```
+
+### 模块命名规范
+
+- 使用 `snake_case` 命名文件和目录
+- 按功能而非技术分组
+- 每个模块职责单一明确
+- 目录名体现架构层次
+
+## 📊 扩展性设计
+
+### 插件化架构
+
+```rust
+// ✅ 插件接口定义
+pub trait Plugin: Send + Sync {
+    fn name(&self) -> &str;
+    fn version(&self) -> &str;
+    fn initialize(&mut self, config: &PluginConfig) -> Result<()>;
+    fn process(&self, input: &ProcessInput) -> Result<ProcessOutput>;
+}
+
+// ✅ 插件管理器
+pub struct PluginManager {
+    plugins: HashMap<String, Box<dyn Plugin>>,
+}
+```
+
+### 版本兼容性
+
+- **接口版本化**：使用语义化版本控制
+- **向后兼容**：新版本保持旧接口可用
+- **迁移支持**：提供数据和配置迁移工具
+- **特性门控**：使用 Cargo features 控制功能

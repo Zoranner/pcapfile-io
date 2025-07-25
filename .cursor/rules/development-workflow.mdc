@@ -1,0 +1,428 @@
+---
+description: 开发流程和工具使用规范
+alwaysApply: false
+---
+# 开发流程和工具使用规范
+
+## 🔧 必需的开发工具链
+
+### 代码质量检查工具
+
+每次提交前必须通过以下检查：
+
+```bash
+# 代码格式化（必须）
+cargo fmt --check
+
+# 代码质量检查（必须，零警告）
+cargo clippy -- -D warnings
+
+# 类型检查（必须）
+cargo check --all-targets --all-features
+
+# 单元测试（必须全部通过）
+cargo test
+
+# 文档生成检查（必须）
+cargo doc --no-deps --document-private-items
+```
+
+### 推荐的辅助工具
+
+提升开发效率的工具：
+
+```bash
+# 自动监听文件变化并运行测试
+cargo install cargo-watch
+cargo watch -x test -x clippy
+
+# 检查依赖的安全漏洞
+cargo install cargo-audit
+cargo audit
+
+# 检查过时的依赖版本
+cargo install cargo-outdated
+cargo outdated
+
+# 展开宏定义用于调试
+cargo install cargo-expand
+cargo expand module::macro_name
+
+# 性能基准测试
+cargo install cargo-criterion
+cargo criterion
+```
+
+## 📋 代码提交工作流
+
+### 提交前检查清单
+
+确保每次提交都满足质量标准：
+
+```bash
+#!/bin/bash
+# pre-commit-check.sh
+
+echo "🔍 运行代码质量检查..."
+
+# 1. 格式化检查
+echo "检查代码格式..."
+if ! cargo fmt --check; then
+    echo "❌ 代码格式不规范，请运行: cargo fmt"
+    exit 1
+fi
+
+# 2. Clippy 检查
+echo "运行 Clippy 检查..."
+if ! cargo clippy --all-targets --all-features -- -D warnings; then
+    echo "❌ Clippy 检查失败，请修复警告"
+    exit 1
+fi
+
+# 3. 测试检查
+echo "运行测试..."
+if ! cargo test; then
+    echo "❌ 测试失败，请修复测试"
+    exit 1
+fi
+
+# 4. 文档检查
+echo "检查文档生成..."
+if ! cargo doc --no-deps --document-private-items; then
+    echo "❌ 文档生成失败，请修复文档注释"
+    exit 1
+fi
+
+echo "✅ 所有检查通过，可以提交代码"
+```
+
+### Git 提交信息规范
+
+使用规范化的提交信息格式：
+
+```
+<类型>(<范围>): <简短描述>
+
+<详细描述>
+
+<破坏性变更说明>
+<关闭的 issue>
+```
+
+**类型标识：**
+
+- `feat`: 新功能
+- `fix`: Bug 修复
+- `docs`: 文档更新
+- `style`: 代码格式修改
+- `refactor`: 代码重构
+- `test`: 测试相关
+- `chore`: 构建过程或辅助工具的变动
+
+**示例：**
+
+```
+feat(reader): 添加批量读取 API
+
+- 新增 read_batch 方法支持批量读取数据包
+- 提供可配置的批次大小参数
+- 优化内存使用，减少单次分配开销
+
+性能提升: 批量读取比单个读取快 3-5 倍
+
+Closes #123
+```
+
+## 🧪 测试策略和规范
+
+### 测试层次结构
+
+建立完整的测试金字塔：
+
+```rust
+// 1. 单元测试 - 测试单个函数/方法
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn test_data_validation() {
+        let input = create_test_data();
+        assert!(validate_data(&input).is_ok());
+    }
+
+    #[test]
+    fn test_error_handling() {
+        let invalid_input = create_invalid_data();
+        assert!(matches!(
+            validate_data(&invalid_input),
+            Err(ValidationError::InvalidFormat { .. })
+        ));
+    }
+}
+
+// 2. 集成测试 - 测试模块间交互
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+
+    #[test]
+    fn test_full_processing_pipeline() {
+        let processor = DataProcessor::new(test_config()).unwrap();
+        let input = load_test_dataset();
+        let result = processor.process_all(input).unwrap();
+
+        assert_eq!(result.processed_count, input.len());
+        assert!(result.errors.is_empty());
+    }
+}
+
+// 3. 性能测试 - 基准测试关键路径
+#[cfg(test)]
+mod bench_tests {
+    use super::*;
+    use criterion::{black_box, criterion_group, criterion_main, Criterion};
+
+    fn benchmark_batch_processing(c: &mut Criterion) {
+        let data = generate_test_data(1000);
+
+        c.bench_function("batch_process_1k", |b| {
+            b.iter(|| {
+                let processor = DataProcessor::new(default_config()).unwrap();
+                black_box(processor.process_batch(&data))
+            })
+        });
+    }
+
+    criterion_group!(benches, benchmark_batch_processing);
+    criterion_main!(benches);
+}
+```
+
+### 测试数据管理
+
+```rust
+// 测试工具模块
+#[cfg(test)]
+pub mod test_utils {
+    use super::*;
+
+    /// 创建标准测试配置
+    pub fn create_test_config() -> Configuration {
+        Configuration {
+            buffer_size: 1024,
+            enable_validation: true,
+            // 测试环境的特殊配置
+            ..Configuration::default()
+        }
+    }
+
+    /// 生成指定大小的测试数据
+    pub fn generate_test_data(count: usize) -> Vec<TestItem> {
+        (0..count)
+            .map(|i| TestItem {
+                id: i as u64,
+                data: format!("test_data_{}", i).into_bytes(),
+                timestamp: SystemTime::now(),
+            })
+            .collect()
+    }
+
+    /// 创建临时测试目录
+    pub fn create_temp_dir() -> tempfile::TempDir {
+        tempfile::tempdir().expect("创建临时目录失败")
+    }
+}
+```
+
+## 📊 性能监控和优化
+
+### 性能基准测试
+
+建立性能基线和回归检测：
+
+```rust
+// benches/performance.rs
+use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
+use my_crate::*;
+
+fn benchmark_different_sizes(c: &mut Criterion) {
+    let mut group = c.benchmark_group("data_processing");
+
+    // 测试不同数据大小的性能
+    for size in [100, 1000, 10000].iter() {
+        group.bench_with_input(
+            BenchmarkId::new("process_data", size),
+            size,
+            |b, &size| {
+                let data = generate_test_data(size);
+                b.iter(|| process_data(&data))
+            },
+        );
+    }
+    group.finish();
+}
+
+criterion_group!(benches, benchmark_different_sizes);
+criterion_main!(benches);
+```
+
+### 内存使用监控
+
+```rust
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+
+    #[test]
+    fn test_memory_usage() {
+        let initial_memory = get_memory_usage();
+
+        {
+            let processor = DataProcessor::new(default_config()).unwrap();
+            let large_data = generate_large_test_data();
+            let _result = processor.process_all(large_data).unwrap();
+        } // processor 在此处析构
+
+        // 强制垃圾回收
+        std::thread::sleep(Duration::from_millis(100));
+
+        let final_memory = get_memory_usage();
+        let memory_leak = final_memory - initial_memory;
+
+        // 允许少量内存增长，但不应有明显泄漏
+        assert!(memory_leak < 1024 * 1024, "可能存在内存泄漏: {} bytes", memory_leak);
+    }
+}
+```
+
+## 📚 文档维护规范
+
+### API 文档要求
+
+所有公共接口必须有完整文档：
+
+````rust
+/// 模块级文档
+///
+/// 这个模块提供数据处理的核心功能，包括：
+/// - 数据验证和格式化
+/// - 批量处理和性能优化
+/// - 错误处理和恢复机制
+///
+/// # 使用示例
+/// ```rust
+/// use my_crate::processor::*;
+///
+/// let config = ProcessorConfig::default();
+/// let processor = DataProcessor::new(config)?;
+/// let result = processor.process(&input_data)?;
+/// ```
+
+// 为复杂算法提供详细说明
+impl DataProcessor {
+    /// 使用优化的批量处理算法
+    ///
+    /// # 算法说明
+    /// 1. 将输入数据按配置的批次大小分组
+    /// 2. 并行处理每个批次以提高效率
+    /// 3. 合并结果并进行最终验证
+    ///
+    /// # 时间复杂度
+    /// O(n) 其中 n 是输入数据的总数量
+    ///
+    /// # 内存复杂度
+    /// O(batch_size) 每个批次的内存使用量
+    pub fn process_optimized(&mut self, data: &[InputItem]) -> Result<ProcessResult> {
+        // 实现细节...
+    }
+}
+````
+
+### 示例代码要求
+
+```rust
+// examples/basic_usage.rs
+//! 基本使用示例
+//!
+//! 演示如何使用库的核心功能进行数据处理
+
+use my_crate::*;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. 创建配置
+    let config = Configuration::default()
+        .with_buffer_size(8192)
+        .with_validation(true);
+
+    // 2. 初始化处理器
+    let mut processor = DataProcessor::new(config)?;
+
+    // 3. 加载测试数据
+    let input_data = load_sample_data()?;
+
+    // 4. 执行处理
+    let result = processor.process_batch(&input_data)?;
+
+    // 5. 输出结果
+    println!("处理完成:");
+    println!("  输入数据: {} 条", input_data.len());
+    println!("  处理成功: {} 条", result.success_count);
+    println!("  处理失败: {} 条", result.error_count);
+
+    Ok(())
+}
+
+fn load_sample_data() -> Result<Vec<InputItem>, std::io::Error> {
+    // 示例数据加载逻辑
+    Ok(vec![
+        InputItem::new("sample1", b"data1".to_vec()),
+        InputItem::new("sample2", b"data2".to_vec()),
+    ])
+}
+```
+
+## 🔄 持续集成配置
+
+### GitHub Actions 工作流
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --all-features
+
+      - name: Run benchmarks
+        run: cargo bench --no-run
+
+      - name: Check documentation
+        run: cargo doc --no-deps --all-features
+```
