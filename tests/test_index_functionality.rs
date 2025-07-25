@@ -151,6 +151,7 @@ fn test_manual_index_generation() {
 
     // 通过 reader.index_mut() 手动生成索引
     let index_path = reader
+        .index_mut()
         .regenerate_index()
         .expect("手动生成索引失败");
 

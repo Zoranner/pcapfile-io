@@ -3,8 +3,8 @@
 //! 测试基本的读写功能和索引生成
 
 use pcap_io::{
-    DataPacket, PcapReader, PcapWriter, ReaderConfig,
-    PcapResult, WriterConfig,
+    DataPacket, PcapReader, PcapResult, PcapWriter,
+    ReaderConfig, WriterConfig,
 };
 use std::path::Path;
 use std::time::SystemTime;
@@ -269,7 +269,9 @@ fn test_small_dataset_empty_and_edge_cases() {
         PcapReader::new(base_path, dataset_name)
             .expect("创建PcapReader失败");
 
-    let dataset_info = reader.get_dataset_info().expect("获取数据集信息失败");
+    let dataset_info = reader
+        .get_dataset_info()
+        .expect("获取数据集信息失败");
     assert_eq!(
         dataset_info.total_packets, 0,
         "空数据集应该有0个数据包"

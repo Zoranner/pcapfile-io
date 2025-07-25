@@ -6,8 +6,8 @@ use std::fs;
 use std::path::Path;
 
 use pcap_io::{
-    DataPacket, PcapReader, PcapWriter, ReaderConfig,
-    PcapResult, WriterConfig,
+    DataPacket, PcapReader, PcapResult, PcapWriter,
+    ReaderConfig, WriterConfig,
 };
 
 /// 清理指定数据集目录
@@ -183,6 +183,7 @@ fn test_manual_index_generation_after_write() {
 
     // 生成索引
     let index_path = reader
+        .index_mut()
         .regenerate_index()
         .expect("手动生成索引失败");
 
