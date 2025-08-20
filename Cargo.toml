@@ -5,7 +5,7 @@ edition = "2021"
 description = "高性能PCAP文件读写库"
 license = "MIT"
 authors = ["Zoranner"]
-repository = "https://github.com/Zoranner/pcap-file-io"
+repository = "https://github.com/Zoranner/pcapfile-io"
 keywords = ["pcap", "network", "packet", "file-format", "io"]
 categories = ["network-programming", "filesystem", "parsing"]
 

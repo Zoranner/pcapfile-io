@@ -1,7 +1,7 @@
 # PcapFile.IO - 高性能数据包文件读写库
 
-[![Crates.io](https://img.shields.io/crates/v/pcap-file-io)](https://crates.io/crates/pcap-file-io)
-[![Documentation](https://docs.rs/pcap-file-io/badge.svg)](https://docs.rs/pcap-file-io)
+[![Crates.io](https://img.shields.io/crates/v/pcapfile-io)](https://crates.io/crates/pcapfile-io)
+[![Documentation](https://docs.rs/pcapfile-io/badge.svg)](https://docs.rs/pcapfile-io)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
 
@@ -92,7 +92,7 @@ fn batch_operations() -> Result<()> {
 
 ## 📚 API文档
 
-详细的API文档请访问：[https://docs.rs/pcap-file-io](https://docs.rs/pcap-file-io)
+详细的API文档请访问：[https://docs.rs/pcapfile-io](https://docs.rs/pcapfile-io)
 
 ## 🏗️ 架构设计
 
@@ -390,8 +390,8 @@ pub type Result<T> = std::result::Result<T, PcapError>;
 
 ```bash
 # 克隆仓库
-git clone https://github.com/kimotech/pcap-file-io.git
-cd pcap-file-io
+git clone https://github.com/kimotech/pcapfile-io.git
+cd pcapfile-io
 
 # 安装依赖
 cargo build
