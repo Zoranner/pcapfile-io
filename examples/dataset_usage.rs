@@ -13,8 +13,7 @@ use std::{path::Path, time::SystemTime};
 
 fn main() -> PcapResult<()> {
     // 设置数据集路径
-    let dataset_path =
-        Path::new("examples").join("data");
+    let dataset_path = Path::new("examples").join("data");
 
     // 确保目录存在
     if dataset_path.exists() {

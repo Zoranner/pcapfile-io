@@ -107,7 +107,8 @@ impl PcapWriter {
         }
 
         // 创建索引管理器（新签名：base_path + dataset_name）
-        let index_manager = IndexManager::new(base_path, dataset_name)?;
+        let index_manager =
+            IndexManager::new(base_path, dataset_name)?;
 
         info!(
             "PcapWriter已创建 - 数据集: {}",
