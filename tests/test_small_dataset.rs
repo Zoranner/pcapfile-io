@@ -3,38 +3,17 @@
 //! 测试基本的读写功能和索引生成
 
 use pcapfile_io::{
-    DataPacket, PcapReader, PcapResult, PcapWriter,
+    PcapReader, PcapResult, PcapWriter,
     ReaderConfig, WriterConfig,
 };
 use std::path::Path;
-use std::time::SystemTime;
 use tempfile::TempDir;
 
-/// 数据包信息结构，用于验证
-#[derive(Debug, Clone)]
-struct PacketInfo {
-    index: usize,
-    packet_length: u32,
-    checksum: u32,
-    first_bytes: Vec<u8>,
-}
-
-/// 创建测试数据包
-fn create_test_packet(
-    sequence: usize,
-    size: usize,
-) -> PcapResult<DataPacket> {
-    let mut data = vec![0u8; size];
-
-    // 填充测试数据
-    for (i, item) in data.iter_mut().enumerate().take(size)
-    {
-        *item = ((sequence + i) % 256) as u8;
-    }
-
-    let capture_time = SystemTime::now();
-    Ok(DataPacket::from_datetime(capture_time, data)?)
-}
+mod common;
+use common::{
+    PacketInfo, create_small_test_packet as create_test_packet,
+    create_packet_info,
+};
 
 /// 写入小数据集
 fn write_small_dataset(
@@ -54,17 +33,7 @@ fn write_small_dataset(
 
     for i in 0..packet_count {
         let packet = create_test_packet(i, packet_size)?;
-        written_packets.push(PacketInfo {
-            index: i,
-            packet_length: packet.packet_length() as u32,
-            checksum: packet.checksum(),
-            first_bytes: packet
-                .data
-                .iter()
-                .take(16)
-                .cloned()
-                .collect(),
-        });
+        written_packets.push(create_packet_info(&packet, i));
         writer.write_packet(&packet)?;
     }
 
@@ -88,17 +57,7 @@ fn read_test_packets(
     let mut packet_index = 0;
 
     while let Some(packet) = reader.read_packet()? {
-        read_packets.push(PacketInfo {
-            index: packet_index,
-            packet_length: packet.packet_length() as u32,
-            checksum: packet.checksum(),
-            first_bytes: packet
-                .data
-                .iter()
-                .take(16)
-                .cloned()
-                .collect(),
-        });
+        read_packets.push(create_packet_info(&packet, packet_index));
         packet_index += 1;
     }
 

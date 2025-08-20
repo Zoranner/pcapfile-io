@@ -5,7 +5,7 @@
 //!
 //! ## 架构设计
 //!
-//! ```
+//! ```text
 //! +-------------------------------------+
 //! |    用户接口层 (API Layer)           |  <- 对外提供服务接口
 //! +-------------------------------------+
@@ -36,10 +36,10 @@
 //!     DataPacket,
 //!     PcapReader,
 //!     PcapWriter,
-//!     Result,
+//!     PcapResult,
 //! };
 //!
-//! fn main() -> Result<()> {
+//! fn main() -> PcapResult<()> {
 //!     // 创建写入器配置
 //!     let writer_config = WriterConfig::default();
 //!

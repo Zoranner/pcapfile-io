@@ -3,29 +3,15 @@
 //! 测试大规模数据（10万个数据包）的写入读取功能和性能
 
 use pcapfile_io::{
-    DataPacket, PcapReader, PcapResult, PcapWriter,
+    PcapReader, PcapResult, PcapWriter,
     WriterConfig,
 };
 use std::path::Path;
-use std::time::{Instant, SystemTime};
+use std::time::Instant;
 use tempfile::TempDir;
 
-/// 创建测试数据包
-fn create_test_packet(
-    sequence: usize,
-    size: usize,
-) -> PcapResult<DataPacket> {
-    let mut data = vec![0u8; size];
-
-    // 填充测试数据模式 - 使用更复杂的模式以避免压缩
-    for (i, item) in data.iter_mut().enumerate().take(size)
-    {
-        *item = ((sequence * 31 + i * 17) % 256) as u8;
-    }
-
-    let capture_time = SystemTime::now();
-    Ok(DataPacket::from_datetime(capture_time, data)?)
-}
+mod common;
+use common::create_large_test_packet as create_test_packet;
 
 /// 大规模写入测试
 fn write_large_dataset(

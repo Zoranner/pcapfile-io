@@ -2,47 +2,21 @@
 //!
 //! 测试无索引写入和读取是否能自动生成索引并验证索引的正确性
 
-use std::fs;
 use std::path::Path;
 
 use pcapfile_io::{
-    DataPacket, PcapReader, PcapResult, PcapWriter,
+    PcapReader, PcapWriter,
     ReaderConfig, WriterConfig,
 };
 
-/// 清理指定数据集目录
-fn clean_dataset_directory<P: AsRef<Path>>(
-    dataset_path: P,
-) -> PcapResult<()> {
-    let path = dataset_path.as_ref();
-    if path.exists() {
-        fs::remove_dir_all(path)
-            .map_err(pcapfile_io::PcapError::Io)?;
-    }
-    fs::create_dir_all(path)
-        .map_err(pcapfile_io::PcapError::Io)?;
-    Ok(())
-}
-
-/// 创建测试数据包
-fn create_test_packet(
-    sequence: u32,
-    size: usize,
-) -> PcapResult<DataPacket> {
-    let mut data = vec![0u8; size];
-    for (i, item) in data.iter_mut().enumerate().take(size)
-    {
-        *item = (i + sequence as usize) as u8;
-    }
-    let capture_time = std::time::SystemTime::now();
-    Ok(DataPacket::from_datetime(capture_time, data)?)
-}
+mod common;
+use common::{clean_dataset_directory, create_test_packet};
 
 #[test]
 fn test_auto_index_with_small_dataset() {
-    let dataset_path =
-        Path::new("test_output").join("auto_index_small");
-    clean_dataset_directory(&dataset_path)
+    const TEST_NAME: &str = "test_auto_index_with_small_dataset";
+    let dataset_path = Path::new("test_output");
+    clean_dataset_directory(&dataset_path.join(TEST_NAME))
         .expect("清理数据集目录失败");
 
     const PACKET_COUNT: usize = 500;
@@ -54,7 +28,7 @@ fn test_auto_index_with_small_dataset() {
 
     let mut writer = PcapWriter::new_with_config(
         &dataset_path,
-        "auto_index_small",
+        TEST_NAME,
         config,
     )
     .expect("创建PcapWriter失败");
@@ -73,7 +47,7 @@ fn test_auto_index_with_small_dataset() {
     // 步骤2: 使用Reader验证自动生成的索引
     let mut reader = PcapReader::new_with_config(
         &dataset_path,
-        "auto_index_small",
+        TEST_NAME,
         ReaderConfig::default(),
     )
     .expect("创建PcapReader失败");
@@ -92,9 +66,9 @@ fn test_auto_index_with_small_dataset() {
 
 #[test]
 fn test_auto_index_with_multiple_files() {
-    let dataset_path =
-        Path::new("test_output").join("auto_index_multi");
-    clean_dataset_directory(&dataset_path)
+    const TEST_NAME: &str = "test_auto_index_with_multiple_files";
+    let dataset_path = Path::new("test_output");
+    clean_dataset_directory(&dataset_path.join(TEST_NAME))
         .expect("清理数据集目录失败");
 
     const TOTAL_PACKETS: usize = 3000;
@@ -107,7 +81,7 @@ fn test_auto_index_with_multiple_files() {
 
     let mut writer = PcapWriter::new_with_config(
         &dataset_path,
-        "auto_index_multi",
+        TEST_NAME,
         config,
     )
     .expect("创建PcapWriter失败");
@@ -126,7 +100,7 @@ fn test_auto_index_with_multiple_files() {
     // 验证自动生成的索引
     let mut reader = PcapReader::new_with_config(
         &dataset_path,
-        "auto_index_multi",
+        TEST_NAME,
         ReaderConfig::default(),
     )
     .expect("创建PcapReader失败");
@@ -144,9 +118,9 @@ fn test_auto_index_with_multiple_files() {
 
 #[test]
 fn test_manual_index_generation_after_write() {
-    let dataset_path =
-        Path::new("test_output").join("manual_index");
-    clean_dataset_directory(&dataset_path)
+    const TEST_NAME: &str = "test_manual_index_generation_after_write";
+    let dataset_path = Path::new("test_output");
+    clean_dataset_directory(&dataset_path.join(TEST_NAME))
         .expect("清理数据集目录失败");
 
     const PACKET_COUNT: usize = 1500;
@@ -158,7 +132,7 @@ fn test_manual_index_generation_after_write() {
 
     let mut writer = PcapWriter::new_with_config(
         &dataset_path,
-        "manual_index",
+        TEST_NAME,
         config,
     )
     .expect("创建PcapWriter失败");
@@ -177,7 +151,7 @@ fn test_manual_index_generation_after_write() {
     // 步骤2: 手动生成索引
     let mut reader = PcapReader::new_with_config(
         &dataset_path,
-        "manual_index",
+        TEST_NAME,
         ReaderConfig::default(),
     )
     .expect("创建PcapReader失败");
@@ -200,9 +174,9 @@ fn test_manual_index_generation_after_write() {
 
 #[test]
 fn test_index_consistency_check() {
-    let dataset_path =
-        Path::new("test_output").join("consistency_check");
-    clean_dataset_directory(&dataset_path)
+    const TEST_NAME: &str = "test_index_consistency_check";
+    let dataset_path = Path::new("test_output");
+    clean_dataset_directory(&dataset_path.join(TEST_NAME))
         .expect("清理数据集目录失败");
 
     const PACKET_COUNT: usize = 2000;
@@ -211,7 +185,7 @@ fn test_index_consistency_check() {
     // 创建数据集
     let mut writer = PcapWriter::new_with_config(
         &dataset_path,
-        "consistency_test",
+        TEST_NAME,
         WriterConfig::default(),
     )
     .expect("创建PcapWriter失败");
@@ -232,7 +206,7 @@ fn test_index_consistency_check() {
     // 验证索引一致性
     let mut reader = PcapReader::new_with_config(
         &dataset_path,
-        "consistency_test",
+        TEST_NAME,
         ReaderConfig::default(),
     )
     .expect("创建PcapReader失败");

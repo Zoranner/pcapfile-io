@@ -3,83 +3,16 @@
 //! 测试写入和读取的一致性，确保数据完整性和可靠性
 
 use pcapfile_io::{
-    DataPacket, PcapReader, PcapResult, PcapWriter,
+    PcapReader, PcapResult, PcapWriter,
 };
 use std::path::Path;
-use std::time::SystemTime;
 use tempfile::TempDir;
 
-/// 数据包详细信息结构
-#[derive(Debug, Clone, PartialEq)]
-struct PacketDetails {
-    index: usize,
-    timestamp_ns: u64,
-    packet_length: u32,
-    checksum: u32,
-    data_hash: String, // 数据内容的哈希值
-    first_16_bytes: Vec<u8>,
-    last_16_bytes: Vec<u8>,
-}
-
-/// 计算数据哈希
-fn calculate_data_hash(data: &[u8]) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
-    let mut hasher = DefaultHasher::new();
-    data.hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
-}
-
-/// 创建具有特定模式的测试数据包
-fn create_detailed_test_packet(
-    sequence: usize,
-    size: usize,
-) -> PcapResult<DataPacket> {
-    let mut data = vec![0u8; size];
-
-    // 创建具有清晰模式的数据，以便检测损坏
-    for (i, item) in data.iter_mut().enumerate().take(size)
-    {
-        *item = match i % 4 {
-            0 => (sequence % 256) as u8,
-            1 => ((sequence >> 8) % 256) as u8,
-            2 => (i % 256) as u8,
-            3 => ((i >> 8) % 256) as u8,
-            _ => unreachable!(),
-        };
-    }
-
-    let capture_time = SystemTime::now();
-    Ok(DataPacket::from_datetime(capture_time, data)?)
-}
-
-/// 从数据包创建详细信息
-fn create_packet_details(
-    packet: &DataPacket,
-    index: usize,
-) -> PacketDetails {
-    let data_hash = calculate_data_hash(&packet.data);
-    let first_16_bytes =
-        packet.data.iter().take(16).cloned().collect();
-    let last_16_bytes = packet
-        .data
-        .iter()
-        .rev()
-        .take(16)
-        .cloned()
-        .collect();
-
-    PacketDetails {
-        index,
-        timestamp_ns: packet.get_timestamp_ns(),
-        packet_length: packet.packet_length() as u32,
-        checksum: packet.checksum(),
-        data_hash,
-        first_16_bytes,
-        last_16_bytes,
-    }
-}
+mod common;
+use common::{
+    PacketDetails, create_detailed_test_packet,
+    create_packet_details,
+};
 
 /// 写入测试数据包并返回详细信息
 fn write_detailed_test_data(
