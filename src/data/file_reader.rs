@@ -1,6 +1,6 @@
 use log::{debug, info};
 use std::fs::File;
-use std::io::{self, BufReader, Read, Seek, SeekFrom};
+use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use crate::business::config::CommonConfig;
@@ -178,58 +178,6 @@ impl PcapFileReader {
         Ok(Some(packet))
     }
 
-    /// 重置读取位置到数据区开始位置
-    pub(crate) fn reset(&mut self) -> PcapResult<()> {
-        let reader =
-            self.reader.as_mut().ok_or_else(|| {
-                PcapError::InvalidState(
-                    ERR_FILE_NOT_OPEN.to_string(),
-                )
-            })?;
-
-        reader
-            .seek(SeekFrom::Start(
-                self.header_position
-                    + PcapFileHeader::HEADER_SIZE as u64,
-            ))
-            .map_err(|e| PcapError::Io(e))?;
-
-        self.packet_count = 0;
-        debug!("读取位置已重置");
-        Ok(())
-    }
-
-    /// 移动到指定的字节位置
-    pub(crate) fn seek(
-        &mut self,
-        position: u64,
-    ) -> PcapResult<()> {
-        let reader =
-            self.reader.as_mut().ok_or_else(|| {
-                PcapError::InvalidState(
-                    ERR_FILE_NOT_OPEN.to_string(),
-                )
-            })?;
-
-        let min_position = self.header_position
-            + PcapFileHeader::HEADER_SIZE as u64;
-        if position < min_position {
-            return Err(PcapError::InvalidArgument(
-                format!(
-                    "位置不能小于数据区开始位置: {}",
-                    min_position
-                ),
-            ));
-        }
-
-        reader
-            .seek(SeekFrom::Start(position))
-            .map_err(|e| PcapError::Io(e))?;
-
-        debug!("已移动到位置: {}", position);
-        Ok(())
-    }
-
     /// 关闭文件
     pub(crate) fn close(&mut self) {
         self.reader = None;
@@ -239,61 +187,6 @@ impl PcapFileReader {
         self.file_size = 0;
         self.header = None;
         debug!("文件已关闭");
-    }
-
-    /// 获取当前文件路径（内部使用）
-    pub(crate) fn file_path(&self) -> Option<&Path> {
-        self.file_path.as_deref()
-    }
-
-    /// 获取文件大小（内部使用）
-    pub(crate) fn file_size(&self) -> u64 {
-        self.file_size
-    }
-
-    /// 获取已读取的数据包数量（内部使用）
-    pub(crate) fn packet_count(&self) -> u64 {
-        self.packet_count
-    }
-
-    /// 获取文件头（内部使用）
-    pub(crate) fn header(&self) -> Option<&PcapFileHeader> {
-        self.header.as_ref()
-    }
-
-    /// 检查是否到达文件末尾（内部使用）
-    pub(crate) fn is_eof(&mut self) -> bool {
-        if let Some(reader) = self.reader.as_mut() {
-            reader.buffer().is_empty()
-                && reader
-                    .get_ref()
-                    .metadata()
-                    .map(|m| {
-                        reader
-                            .stream_position()
-                            .unwrap_or(0)
-                            >= m.len()
-                    })
-                    .unwrap_or(true)
-        } else {
-            true
-        }
-    }
-
-    /// 获取当前读取位置（内部使用）
-    pub(crate) fn current_position(
-        &mut self,
-    ) -> PcapResult<u64> {
-        let reader =
-            self.reader.as_mut().ok_or_else(|| {
-                PcapError::InvalidState(
-                    ERR_FILE_NOT_OPEN.to_string(),
-                )
-            })?;
-
-        reader
-            .stream_position()
-            .map_err(|e| PcapError::Io(e))
     }
 }
 

@@ -34,14 +34,16 @@ impl IndexManager {
     /// 创建新的索引管理器
     ///
     /// # 参数
-    /// - `dataset_path` - 数据集目录路径
+    /// - `base_path` - 基础目录路径
+    /// - `dataset_name` - 数据集名称
     ///
     /// # 返回
     /// 返回初始化后的管理器实例
     pub fn new<P: AsRef<Path>>(
-        dataset_path: P,
+        base_path: P,
+        dataset_name: &str,
     ) -> PcapResult<Self> {
-        let path = dataset_path.as_ref().to_path_buf();
+        let path = base_path.as_ref().join(dataset_name);
 
         if !path.exists() {
             return Err(PcapError::DirectoryNotFound(
@@ -55,15 +57,9 @@ impl IndexManager {
             ));
         }
 
-        let dataset_name = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("未命名数据集")
-            .to_string();
-
         Ok(Self {
             dataset_path: path,
-            dataset_name,
+            dataset_name: dataset_name.to_string(),
             index: None,
         })
     }
@@ -445,23 +441,10 @@ impl IndexManager {
     fn find_pidx_file(
         &self,
     ) -> PcapResult<Option<PathBuf>> {
-        let entries = fs::read_dir(&self.dataset_path)
-            .map_err(|e| PcapError::Io(e))?;
-
-        for entry in entries {
-            let entry =
-                entry.map_err(|e| PcapError::Io(e))?;
-            let path = entry.path();
-
-            if path.is_file() {
-                if let Some(extension) = path.extension() {
-                    if extension.to_str() == Some("pidx") {
-                        return Ok(Some(path));
-                    }
-                }
-            }
+        let preferred = self.dataset_path.join(".pidx");
+        if preferred.exists() && preferred.is_file() {
+            return Ok(Some(preferred));
         }
-
         Ok(None)
     }
 
@@ -634,8 +617,7 @@ impl IndexManager {
 
     /// 获取PIDX文件路径
     fn get_pidx_file_path(&self) -> PathBuf {
-        let pidx_filename =
-            format!("{}.pidx", self.dataset_name);
-        self.dataset_path.join(pidx_filename)
+        // 统一命名为隐藏索引文件 .pidx，避免依赖数据集名称
+        self.dataset_path.join(".pidx")
     }
 }

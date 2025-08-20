@@ -103,7 +103,7 @@ impl PcapReader {
 
         // 创建索引管理器
         let index_manager =
-            IndexManager::new(&dataset_path)?;
+            IndexManager::new(base_path, dataset_name)?;
 
         info!(
             "PcapReader已创建 - 数据集: {}",

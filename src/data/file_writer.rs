@@ -193,21 +193,6 @@ impl PcapFileWriter {
         self.packet_count = 0;
         self.total_size = 0;
     }
-
-    /// 获取当前文件路径（内部使用）
-    pub(crate) fn file_path(&self) -> Option<&Path> {
-        self.file_path.as_deref()
-    }
-
-    /// 获取已写入的数据包数量（内部使用）
-    pub(crate) fn packet_count(&self) -> u64 {
-        self.packet_count
-    }
-
-    /// 获取总大小（内部使用）
-    pub(crate) fn total_size(&self) -> u64 {
-        self.total_size
-    }
 }
 
 impl Drop for PcapFileWriter {
