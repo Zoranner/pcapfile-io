@@ -14,6 +14,8 @@ use crate::data::models::{
     DataPacket, DatasetInfo, FileInfo,
 };
 use crate::foundation::error::{PcapError, PcapResult};
+use crate::foundation::utils::DateTimeExtensions;
+use chrono::Utc;
 
 /// PCAP数据集写入器
 ///
@@ -347,26 +349,19 @@ impl PcapWriter {
 
     /// 创建新的PCAP文件
     fn create_new_file(&mut self) -> PcapResult<()> {
-        // 生成文件名
-        let filename = if self.current_file_index == 0 {
-            format!("{}.pcap", self.dataset_name)
-        } else {
-            format!(
-                "{}_{:03}.pcap",
-                self.dataset_name, self.current_file_index
-            )
-        };
+        // 生成符合标准的文件名: data_yyMMdd_HHmmss_nnnnnnnnn.pcap
+        let time_str = Utc::now().to_filename_string();
+        let filename = format!("data_{}.pcap", time_str);
 
         let file_path = self.dataset_path.join(&filename);
 
         // 创建新的写入器
         let mut writer = PcapFileWriter::new(
             self.configuration.common.clone(),
-            self.configuration.max_packets_per_file,
             self.configuration.auto_flush,
         );
         writer
-            .create(&file_path)
+            .create(&self.dataset_path, &filename)
             .map_err(PcapError::InvalidFormat)?;
 
         // 关闭之前的写入器

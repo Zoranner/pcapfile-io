@@ -1,4 +1,4 @@
-use chrono::{DateTime, Timelike, Utc};
+use chrono::{DateTime, Local, Datelike, Timelike, Utc};
 
 /// 字节数组扩展方法
 pub trait ByteArrayExtensions {
@@ -111,6 +111,10 @@ pub trait DateTimeExtensions {
         seconds: u32,
         nanoseconds: u32,
     ) -> DateTime<Utc>;
+
+    /// 将时间转换为文件名格式字符串
+    /// 格式: yyMMdd_HHmmss_nnnnnnnnn (9位纳秒)
+    fn to_filename_string(&self) -> String;
 }
 
 impl DateTimeExtensions for DateTime<Utc> {
@@ -142,6 +146,23 @@ impl DateTimeExtensions for DateTime<Utc> {
             nanoseconds,
         )
         .unwrap_or_default()
+    }
+
+    fn to_filename_string(&self) -> String {
+        let local_time: DateTime<Local> = (*self).into();
+
+        let year = local_time.year() % 100; // 取年份后两位
+        let month = local_time.month();
+        let day = local_time.day();
+        let hour = local_time.hour();
+        let minute = local_time.minute();
+        let second = local_time.second();
+        let nanosecond = local_time.nanosecond(); // 完整的9位纳秒
+
+        format!(
+            "{:02}{:02}{:02}_{:02}{:02}{:02}_{:09}",
+            year, month, day, hour, minute, second, nanosecond
+        )
     }
 }
 

@@ -2,10 +2,10 @@ use log::info;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::business::config::CommonConfig;
 use crate::data::models::{DataPacket, PcapFileHeader};
+
 
 /// PCAP文件写入器
 pub struct PcapFileWriter {
@@ -14,7 +14,7 @@ pub struct PcapFileWriter {
     file_path: Option<PathBuf>,
     packet_count: u64,
     total_size: u64,
-    max_packets_per_file: usize,
+
     auto_flush: bool,
     configuration: CommonConfig,
 }
@@ -22,7 +22,6 @@ pub struct PcapFileWriter {
 impl PcapFileWriter {
     pub(crate) fn new(
         configuration: CommonConfig,
-        max_packets_per_file: usize,
         auto_flush: bool,
     ) -> Self {
         Self {
@@ -31,7 +30,6 @@ impl PcapFileWriter {
             file_path: None,
             packet_count: 0,
             total_size: 0,
-            max_packets_per_file,
             auto_flush,
             configuration,
         }
@@ -40,9 +38,10 @@ impl PcapFileWriter {
     /// 创建新的PCAP文件
     pub(crate) fn create<P: AsRef<Path>>(
         &mut self,
-        file_path: P,
+        base_dir: P,
+        filename: &str,
     ) -> Result<(), String> {
-        let path = file_path.as_ref();
+        let path = base_dir.as_ref().join(filename);
 
         // 确保目录存在
         if let Some(parent) = path.parent() {
@@ -56,7 +55,7 @@ impl PcapFileWriter {
             .truncate(true)
             .write(true)
             .read(true)
-            .open(path)
+            .open(&path)
             .map_err(|e| {
                 format!("创建文件失败: {path:?}, 错误: {e}")
             })?;
@@ -97,13 +96,6 @@ impl PcapFileWriter {
         &mut self,
         packet: &DataPacket,
     ) -> Result<u64, String> {
-        // 检查是否需要创建新文件
-        if self.packet_count
-            >= self.max_packets_per_file as u64
-        {
-            self.create_new_file()?;
-        }
-
         let writer =
             self.writer.as_mut().ok_or("文件未打开")?;
 
@@ -126,48 +118,6 @@ impl PcapFileWriter {
         }
 
         Ok(offset)
-    }
-
-    /// 创建新文件
-    fn create_new_file(&mut self) -> Result<(), String> {
-        let current_path = self.file_path.clone();
-        if let Some(path) = current_path {
-            // 关闭当前文件
-            self.close();
-
-            // 生成新文件名
-            let new_path =
-                self.generate_new_file_path(&path)?;
-
-            // 创建新文件
-            self.create(new_path)?;
-        }
-        Ok(())
-    }
-
-    /// 生成新文件路径
-    fn generate_new_file_path(
-        &self,
-        current_path: &Path,
-    ) -> Result<PathBuf, String> {
-        let stem = current_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .ok_or("无法获取文件名")?;
-
-        let extension = current_path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("pcap");
-
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| "获取时间戳失败")?
-            .as_nanos();
-
-        let new_filename =
-            format!("{stem}_{timestamp}.{extension}");
-        Ok(current_path.with_file_name(new_filename))
     }
 
     /// 刷新缓冲区
