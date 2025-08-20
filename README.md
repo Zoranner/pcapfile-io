@@ -73,7 +73,7 @@ fn batch_operations() -> Result<()> {
     // 批量写入
     let mut packets = Vec::new();
     for i in 0..1000 {
-        let data = format!("批量数据包 #{}", i).into_bytes();
+        let data = format!("批量数据包 #{i}").into_bytes();
         let packet = DataPacket::from_datetime(SystemTime::now(), data)?;
         packets.push(packet);
     }
@@ -141,8 +141,8 @@ pcapfile-io/
 - `DataPacket`: 数据包结构
 - `PcapFileHeader`: 文件头结构
 - `DataPacketHeader`: 数据包头部结构
-- `Reader`: 数据集读取器
-- `Writer`: 数据集写入器
+- `PcapReader`: 数据集读取器
+- `PcapWriter`: 数据集写入器
 - `DatasetInfo`: 数据集信息
 - `FileInfo`: 文件信息
 
@@ -286,8 +286,7 @@ pub trait Info {
 ### 数据格式要求
 
 - 支持任意格式的二进制数据
-- 单个数据包大小限制为 30MB 以内
-- 文件命名建议遵循 `data_yyMMdd_HHmmss_fffffff.pcap` 格式
+- 文件命名建议遵循 `data_yyMMdd_HHmmss_nnnnnnnnn.pcap` 格式（9位纳秒）
 - 数据集目录使用指定的数据集名称创建
 
 ### 数据对齐规范
