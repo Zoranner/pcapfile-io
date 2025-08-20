@@ -17,8 +17,7 @@ impl PcapFormatProcessor {
     ) -> PcapResult<PcapFileHeader> {
         PcapFileHeader::from_bytes(data).map_err(|e| {
             PcapError::InvalidFormat(format!(
-                "解析文件头失败: {}",
-                e
+                "解析文件头失败: {e}"
             ))
         })
     }
@@ -36,8 +35,7 @@ impl PcapFormatProcessor {
     ) -> PcapResult<DataPacketHeader> {
         DataPacketHeader::from_bytes(data).map_err(|e| {
             PcapError::InvalidFormat(format!(
-                "解析数据包头失败: {}",
-                e
+                "解析数据包头失败: {e}"
             ))
         })
     }
@@ -68,7 +66,7 @@ impl PcapFormatProcessor {
         }
 
         DataPacket::new(header, payload_data.to_vec())
-            .map_err(|e| PcapError::InvalidFormat(e))
+            .map_err(PcapError::InvalidFormat)
     }
 
     /// 序列化完整数据包

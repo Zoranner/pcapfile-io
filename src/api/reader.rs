@@ -105,10 +105,7 @@ impl PcapReader {
         let index_manager =
             IndexManager::new(base_path, dataset_name)?;
 
-        info!(
-            "PcapReader已创建 - 数据集: {}",
-            dataset_name
-        );
+        info!("PcapReader已创建 - 数据集: {dataset_name}");
 
         Ok(Self {
             dataset_path,
@@ -422,7 +419,7 @@ impl PcapReader {
 
         if file_index >= index.data_files.files.len() {
             return Err(PcapError::InvalidArgument(
-                format!("文件索引超出范围: {}", file_index),
+                format!("文件索引超出范围: {file_index}"),
             ));
         }
 
@@ -445,7 +442,7 @@ impl PcapReader {
         self.current_reader = Some(reader);
         self.current_file_index = file_index;
 
-        debug!("已打开文件: {:?}", file_path);
+        debug!("已打开文件: {file_path:?}");
         Ok(())
     }
 

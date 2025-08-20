@@ -93,15 +93,14 @@ impl PcapWriter {
         // 确保数据集目录存在
         if !dataset_path.exists() {
             fs::create_dir_all(&dataset_path)
-                .map_err(|e| PcapError::Io(e))?;
-            info!("已创建数据集目录: {:?}", dataset_path);
+                .map_err(PcapError::Io)?;
+            info!("已创建数据集目录: {dataset_path:?}");
         }
 
         if !dataset_path.is_dir() {
             return Err(PcapError::InvalidArgument(
                 format!(
-                    "指定路径不是目录: {:?}",
-                    dataset_path
+                    "指定路径不是目录: {dataset_path:?}"
                 ),
             ));
         }
@@ -110,10 +109,7 @@ impl PcapWriter {
         let index_manager =
             IndexManager::new(base_path, dataset_name)?;
 
-        info!(
-            "PcapWriter已创建 - 数据集: {}",
-            dataset_name
-        );
+        info!("PcapWriter已创建 - 数据集: {dataset_name}");
 
         Ok(Self {
             dataset_path,
@@ -371,7 +367,7 @@ impl PcapWriter {
         );
         writer
             .create(&file_path)
-            .map_err(|e| PcapError::InvalidFormat(e))?;
+            .map_err(PcapError::InvalidFormat)?;
 
         // 关闭之前的写入器
         if let Some(ref mut old_writer) =
@@ -379,7 +375,7 @@ impl PcapWriter {
         {
             old_writer
                 .flush()
-                .map_err(|e| PcapError::InvalidFormat(e))?;
+                .map_err(PcapError::InvalidFormat)?;
             old_writer.close();
         }
 
@@ -389,7 +385,7 @@ impl PcapWriter {
         self.current_file_packet_count = 0;
         self.created_files.push(file_path.clone());
 
-        info!("已创建新文件: {:?}", file_path);
+        info!("已创建新文件: {file_path:?}");
         Ok(())
     }
 
@@ -429,7 +425,7 @@ impl Drop for PcapWriter {
     fn drop(&mut self) {
         if !self.is_finalized {
             if let Err(e) = self.finalize() {
-                warn!("完成PcapWriter时出错: {}", e);
+                warn!("完成PcapWriter时出错: {e}");
             }
         }
     }

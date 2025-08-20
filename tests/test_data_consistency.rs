@@ -39,8 +39,9 @@ fn create_detailed_test_packet(
     let mut data = vec![0u8; size];
 
     // 创建具有清晰模式的数据，以便检测损坏
-    for i in 0..size {
-        data[i] = match i % 4 {
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
+        *item = match i % 4 {
             0 => (sequence % 256) as u8,
             1 => ((sequence >> 8) % 256) as u8,
             2 => (i % 256) as u8,
@@ -191,15 +192,13 @@ fn deep_compare_packet_details(
 
             if w.first_16_bytes != r.first_16_bytes {
                 errors.push(format!(
-                    "数据包 {}: 前16字节不匹配",
-                    i
+                    "数据包 {i}: 前16字节不匹配"
                 ));
             }
 
             if w.last_16_bytes != r.last_16_bytes {
                 errors.push(format!(
-                    "数据包 {}: 后16字节不匹配",
-                    i
+                    "数据包 {i}: 后16字节不匹配"
                 ));
             }
         }
@@ -241,7 +240,7 @@ fn test_basic_data_consistency() {
 
     if !is_consistent {
         for error in errors.iter().take(10) {
-            println!("错误: {}", error);
+            println!("错误: {error}");
         }
         if errors.len() > 10 {
             println!(
@@ -258,8 +257,7 @@ fn test_basic_data_consistency() {
     );
 
     println!(
-        "✅ 基本数据一致性测试通过：{} 个数据包完全一致",
-        PACKET_COUNT
+        "✅ 基本数据一致性测试通过：{PACKET_COUNT} 个数据包完全一致"
     );
 }
 
@@ -296,8 +294,7 @@ fn test_large_packet_consistency() {
 
     assert!(
         is_consistent,
-        "大数据包一致性测试失败，错误: {:?}",
-        errors
+        "大数据包一致性测试失败，错误: {errors:?}"
     );
 
     println!(
@@ -362,15 +359,13 @@ fn test_mixed_size_packet_consistency() {
 
     assert!(
         is_consistent,
-        "混合大小数据包一致性测试失败，错误: {:?}",
-        errors
+        "混合大小数据包一致性测试失败，错误: {errors:?}"
     );
 
     let total_packets =
         packet_sizes.len() * packets_per_size;
     println!(
-        "✅ 混合大小数据包一致性测试通过：{} 个不同大小数据包",
-        total_packets
+        "✅ 混合大小数据包一致性测试通过：{total_packets} 个不同大小数据包"
     );
 }
 
@@ -434,13 +429,11 @@ fn test_timestamp_consistency() {
     {
         assert_eq!(
             written_ts, read_ts,
-            "数据包 {} 时间戳不匹配：写入 {}，读取 {}",
-            i, written_ts, read_ts
+            "数据包 {i} 时间戳不匹配：写入 {written_ts}，读取 {read_ts}"
         );
     }
 
     println!(
-        "✅ 时间戳一致性测试通过：{} 个数据包时间戳完全匹配",
-        PACKET_COUNT
+        "✅ 时间戳一致性测试通过：{PACKET_COUNT} 个数据包时间戳完全匹配"
     );
 }

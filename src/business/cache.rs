@@ -44,6 +44,12 @@ impl CacheStats {
     }
 }
 
+impl Default for CacheStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// 文件信息缓存项
 #[derive(Debug, Clone)]
 pub struct FileInfoCacheItem {

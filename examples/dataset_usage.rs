@@ -44,8 +44,9 @@ fn create_test_packet(
     let mut data = vec![0u8; size];
 
     // 填充测试数据模式
-    for i in 0..size {
-        data[i] = ((sequence + i) % 256) as u8;
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
+        *item = ((sequence + i) % 256) as u8;
     }
 
     let capture_time = SystemTime::now();
@@ -73,7 +74,8 @@ fn create_dataset(dataset_path: &Path) -> PcapResult<()> {
         writer.write_packet(&packet)?;
 
         if i % 500 == 0 {
-            println!("   已写入 {} 个数据包", i + 1);
+            let count = i + 1;
+            println!("   已写入 {count} 个数据包");
         }
     }
 
@@ -132,11 +134,11 @@ fn read_dataset(dataset_path: &Path) -> PcapResult<()> {
         packet_count += 1;
 
         if packet_count % 500 == 0 {
-            println!("   已读取 {} 个数据包", packet_count);
+            println!("   已读取 {packet_count} 个数据包");
         }
     }
 
-    println!("   总共读取: {} 个数据包", packet_count);
+    println!("   总共读取: {packet_count} 个数据包");
     println!("   ✅ 数据集读取完成\n");
     Ok(())
 }
@@ -170,8 +172,8 @@ fn demonstrate_index_management(
         dataset_info.end_timestamp,
     ) {
         println!("   时间范围：");
-        println!("     - 开始时间戳: {} ns", start);
-        println!("     - 结束时间戳: {} ns", end);
+        println!("     - 开始时间戳: {start} ns");
+        println!("     - 结束时间戳: {end} ns");
         println!(
             "     - 时间跨度: {:.2} 秒",
             (end - start) as f64 / 1_000_000_000.0

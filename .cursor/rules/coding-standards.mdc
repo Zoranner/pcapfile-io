@@ -233,13 +233,13 @@ impl DataProcessor {
         // 尝试读取文件
         let raw_data = FileReader::read_file(file_path)
             .map_err(|e| ProcessError::InvalidInput {
-                details: format!("无法读取输入文件 {:?}: {}", file_path, e)
+                details: format!("无法读取输入文件 {file_path:?}: {e}")
             })?;
 
         // 解析数据格式
         InputData::parse(&raw_data)
             .map_err(|parse_err| ProcessError::InvalidInput {
-                details: format!("文件 {:?} 格式解析失败: {}", file_path, parse_err)
+                details: format!("文件 {file_path:?} 格式解析失败: {parse_err}")
             })
     }
 }
@@ -252,7 +252,7 @@ impl PublicApi {
         // 检查文件是否存在
         if !path_ref.exists() {
             return Err(ProcessError::InvalidInput {
-                details: format!("文件不存在: {:?}", path_ref)
+                details: format!("文件不存在: {path_ref:?}")
             });
         }
 

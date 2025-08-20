@@ -127,8 +127,7 @@ impl DataPacketHeader {
             packet_length as usize,
         ) {
             return Err(format!(
-                "无效的数据包长度: {}",
-                packet_length
+                "无效的数据包长度: {packet_length}"
             ));
         }
 

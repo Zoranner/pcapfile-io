@@ -49,18 +49,15 @@ impl PcapFileReader {
 
         if !path.exists() {
             return Err(PcapError::FileNotFound(format!(
-                "文件不存在: {:?}",
-                path
+                "文件不存在: {path:?}"
             )));
         }
 
-        let file = File::open(path)
-            .map_err(|e| PcapError::Io(e))?;
+        let file =
+            File::open(path).map_err(PcapError::Io)?;
 
-        let file_size = file
-            .metadata()
-            .map_err(|e| PcapError::Io(e))?
-            .len();
+        let file_size =
+            file.metadata().map_err(PcapError::Io)?.len();
 
         if file_size < PcapFileHeader::HEADER_SIZE as u64 {
             return Err(PcapError::InvalidFormat(
@@ -81,7 +78,7 @@ impl PcapFileReader {
             reader
                 .get_ref()
                 .try_clone()
-                .map_err(|e| PcapError::Io(e))?,
+                .map_err(PcapError::Io)?,
         );
         self.reader = Some(reader);
         self.file_path = Some(path.to_path_buf());
@@ -90,7 +87,7 @@ impl PcapFileReader {
         self.packet_count = 0;
         self.header_position = 0;
 
-        info!("成功打开PCAP文件: {:?}", path);
+        info!("成功打开PCAP文件: {path:?}");
         Ok(())
     }
 
@@ -103,11 +100,11 @@ impl PcapFileReader {
             [0u8; PcapFileHeader::HEADER_SIZE];
         reader
             .read_exact(&mut header_bytes)
-            .map_err(|e| PcapError::Io(e))?;
+            .map_err(PcapError::Io)?;
 
         let header =
             PcapFileHeader::from_bytes(&header_bytes)
-                .map_err(|e| PcapError::InvalidFormat(e))?;
+                .map_err(PcapError::InvalidFormat)?;
 
         if !header.is_valid() {
             return Err(PcapError::InvalidFormat(
@@ -145,14 +142,14 @@ impl PcapFileReader {
 
         let header =
             DataPacketHeader::from_bytes(&header_bytes)
-                .map_err(|e| PcapError::InvalidFormat(e))?;
+                .map_err(PcapError::InvalidFormat)?;
 
         // 读取数据包内容
         let mut data =
             vec![0u8; header.packet_length as usize];
         reader
             .read_exact(&mut data)
-            .map_err(|e| PcapError::Io(e))?;
+            .map_err(PcapError::Io)?;
 
         // 验证校验和
         if self.configuration.enable_validation {
@@ -169,7 +166,7 @@ impl PcapFileReader {
         self.packet_count += 1;
 
         let packet = DataPacket::new(header, data)
-            .map_err(|e| PcapError::InvalidFormat(e))?;
+            .map_err(PcapError::InvalidFormat)?;
 
         debug!(
             "已读取数据包，当前计数: {}",

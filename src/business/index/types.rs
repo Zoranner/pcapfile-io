@@ -95,12 +95,9 @@ impl PidxIndex {
             .map(|f| f.end_timestamp)
             .max()
             .unwrap_or(0);
-        self.total_duration =
-            if self.end_timestamp > self.start_timestamp {
-                self.end_timestamp - self.start_timestamp
-            } else {
-                0
-            };
+        self.total_duration = self
+            .end_timestamp
+            .saturating_sub(self.start_timestamp);
     }
 
     pub fn update_total_packets(&mut self) {

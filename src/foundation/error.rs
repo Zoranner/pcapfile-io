@@ -144,8 +144,7 @@ impl From<serde_json::Error> for PcapError {
 impl From<base64::DecodeError> for PcapError {
     fn from(err: base64::DecodeError) -> Self {
         PcapError::InvalidFormat(format!(
-            "Base64解码失败: {}",
-            err
+            "Base64解码失败: {err}"
         ))
     }
 }
@@ -154,8 +153,7 @@ impl From<base64::DecodeError> for PcapError {
 impl From<std::string::FromUtf8Error> for PcapError {
     fn from(err: std::string::FromUtf8Error) -> Self {
         PcapError::InvalidFormat(format!(
-            "UTF8解码失败: {}",
-            err
+            "UTF8解码失败: {err}"
         ))
     }
 }

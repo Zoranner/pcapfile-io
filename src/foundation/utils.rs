@@ -54,7 +54,7 @@ impl ByteArrayExtensions for [u8] {
             if i > 0 && !separator.is_empty() {
                 result.push_str(separator);
             }
-            result.push_str(&format!("{:02X}", byte));
+            result.push_str(&format!("{byte:02x}"))
         }
         result
     }
@@ -68,7 +68,7 @@ impl ByteArrayExtensions for [u8] {
 
     fn to_utf8_string(&self) -> Result<String, String> {
         String::from_utf8(self.to_vec())
-            .map_err(|e| format!("UTF8解码失败: {}", e))
+            .map_err(|e| format!("UTF8解码失败: {e}"))
     }
 
     fn equals(&self, other: &[u8]) -> bool {
@@ -239,7 +239,7 @@ pub mod binary_converter {
         bytes: &[u8],
     ) -> Result<String, String> {
         String::from_utf8(bytes.to_vec())
-            .map_err(|e| format!("UTF8解码失败: {}", e))
+            .map_err(|e| format!("UTF8解码失败: {e}"))
     }
 
     /// 将字节数组转换为Base64字符串
@@ -258,6 +258,6 @@ pub mod binary_converter {
             &base64::engine::general_purpose::STANDARD,
             base64_str,
         )
-        .map_err(|e| format!("Base64解码失败: {}", e))
+        .map_err(|e| format!("Base64解码失败: {e}"))
     }
 }

@@ -40,23 +40,23 @@ fn main() -> Result<()> {
     let mut config = Configuration::default();
     config.max_packets_per_file = 1000;
     config.buffer_size = 64 * 1024; // 64KB
-    
+
     // 写入数据集
     let mut writer = Writer::new("my_dataset")?;
-    
+
     let data = b"Hello, World!".to_vec();
     let packet = DataPacket::from_datetime(SystemTime::now(), data)?;
-    
+
     writer.write_packet(&packet)?;
     writer.flush()?;
-    
+
     // 读取数据集
     let mut reader = Reader::new("my_dataset")?;
-    
+
     while let Some(packet) = reader.read_packet()? {
         println!("读取数据包: {:?}", packet);
     }
-    
+
     Ok(())
 }
 ```
@@ -69,7 +69,7 @@ use pcapfile_io::{Configuration, DataPacket, Writer, Result};
 fn batch_operations() -> Result<()> {
     let config = Configuration::default();
     let mut writer = Writer::new("batch_dataset")?;
-    
+
     // 批量写入
     let mut packets = Vec::new();
     for i in 0..1000 {
@@ -77,15 +77,15 @@ fn batch_operations() -> Result<()> {
         let packet = DataPacket::from_datetime(SystemTime::now(), data)?;
         packets.push(packet);
     }
-    
+
     writer.write_packets(&packets)?;
     writer.flush()?;
-    
+
     // 获取数据集信息（简化接口）
     let reader = Reader::new("batch_dataset")?;
     let info = reader.dataset_info();
     println!("数据集信息: {:?}", info);
-    
+
     Ok(())
 }
 ```
@@ -115,7 +115,7 @@ fn batch_operations() -> Result<()> {
 
 ### 模块结构
 
-```
+```bash
 pcapfile-io/
 ├── src/
 │   ├── lib.rs              # 主模块入口
@@ -300,7 +300,7 @@ pub trait Info {
 
 ### 基准测试结果
 
-```
+```bash
 write_100_packets     time:   [1.2345 ms 1.3456 ms 1.4567 ms]
 write_1000_packets    time:   [12.345 ms 13.456 ms 14.567 ms]
 read_1000_packets     time:   [8.9012 ms 9.0123 ms 9.1234 ms]
@@ -414,4 +414,4 @@ cargo bench
 
 ---
 
-**PcapFile.IO** - 让数据包文件处理变得简单高效！ 🚀 
+**PcapFile.IO** - 让数据包文件处理变得简单高效！ 🚀

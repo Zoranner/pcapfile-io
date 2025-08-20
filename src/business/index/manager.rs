@@ -47,13 +47,13 @@ impl IndexManager {
 
         if !path.exists() {
             return Err(PcapError::DirectoryNotFound(
-                format!("数据集目录不存在: {:?}", path),
+                format!("数据集目录不存在: {path:?}"),
             ));
         }
 
         if !path.is_dir() {
             return Err(PcapError::InvalidArgument(
-                format!("指定路径不是目录: {:?}", path),
+                format!("指定路径不是目录: {path:?}"),
             ));
         }
 
@@ -78,7 +78,7 @@ impl IndexManager {
 
         // 1. 尝试加载现有索引
         if let Some(pidx_path) = self.find_pidx_file()? {
-            info!("找到索引文件: {:?}", pidx_path);
+            info!("找到索引文件: {pidx_path:?}");
 
             // 验证格式并加载
             if self.validate_pidx_format(&pidx_path)? {
@@ -97,7 +97,7 @@ impl IndexManager {
                         }
                     }
                     Err(e) => {
-                        warn!("加载索引文件失败: {}, 将重新生成", e);
+                        warn!("加载索引文件失败: {e}, 将重新生成");
                     }
                 }
             } else {
@@ -181,10 +181,7 @@ impl IndexManager {
                     .join(&file_index.file_name);
 
                 if !file_path.exists() {
-                    warn!(
-                        "PCAP文件不存在: {:?}",
-                        file_path
-                    );
+                    warn!("PCAP文件不存在: {file_path:?}");
                     return Ok(false);
                 }
 
@@ -253,7 +250,7 @@ impl IndexManager {
             let pidx_file_path = self.get_pidx_file_path();
             self.save_index_to_file(&pidx_file_path)?;
 
-            info!("空索引文件已生成: {:?}", pidx_file_path);
+            info!("空索引文件已生成: {pidx_file_path:?}");
             return Ok(pidx_file_path);
         }
 
@@ -296,8 +293,7 @@ impl IndexManager {
                 }
                 Err(e) => {
                     warn!(
-                        "分析PCAP文件失败: {:?}, 错误: {}",
-                        file_path, e
+                        "分析PCAP文件失败: {file_path:?}, 错误: {e}"
                     );
                     // 继续处理其他文件
                 }
@@ -333,7 +329,7 @@ impl IndexManager {
                 / 1_000_000_000.0
         );
 
-        info!("PIDX索引文件已保存: {:?}", pidx_file_path);
+        info!("PIDX索引文件已保存: {pidx_file_path:?}");
         Ok(pidx_file_path)
     }
 
@@ -349,12 +345,12 @@ impl IndexManager {
             .unwrap_or("unknown")
             .to_string();
 
-        debug!("正在分析PCAP文件: {}", file_name);
+        debug!("正在分析PCAP文件: {file_name}");
 
         // 计算文件哈希
         let file_hash = self.calculate_file_hash(path)?;
         let file_size = fs::metadata(path)
-            .map_err(|e| PcapError::Io(e))?
+            .map_err(PcapError::Io)?
             .len();
 
         // 打开PCAP文件并读取所有数据包
@@ -406,8 +402,7 @@ impl IndexManager {
         };
 
         debug!(
-            "文件分析完成: {} 个数据包, 时间范围: {}ns - {}ns",
-            packet_count, start_timestamp, end_timestamp
+            "文件分析完成: {packet_count} 个数据包, 时间范围: {start_timestamp}ns - {end_timestamp}ns"
         );
 
         Ok(file_index)
@@ -424,7 +419,7 @@ impl IndexManager {
     ) -> PcapResult<PidxIndex> {
         let xml_content =
             fs::read_to_string(pidx_file_path.as_ref())
-                .map_err(|e| PcapError::Io(e))?;
+                .map_err(PcapError::Io)?;
 
         let mut index =
             self.deserialize_from_xml(&xml_content)?;
@@ -495,7 +490,7 @@ impl IndexManager {
     ) -> PcapResult<bool> {
         let xml_content =
             fs::read_to_string(pidx_file_path.as_ref())
-                .map_err(|e| PcapError::Io(e))?;
+                .map_err(PcapError::Io)?;
 
         match self.deserialize_from_xml(&xml_content) {
             Ok(_) => Ok(true),
@@ -511,11 +506,10 @@ impl IndexManager {
     fn scan_pcap_files(&self) -> PcapResult<Vec<PathBuf>> {
         let mut pcap_files = Vec::new();
         let entries = fs::read_dir(&self.dataset_path)
-            .map_err(|e| PcapError::Io(e))?;
+            .map_err(PcapError::Io)?;
 
         for entry in entries {
-            let entry =
-                entry.map_err(|e| PcapError::Io(e))?;
+            let entry = entry.map_err(PcapError::Io)?;
             let path = entry.path();
 
             if path.is_file() {
@@ -538,7 +532,7 @@ impl IndexManager {
         file_path: P,
     ) -> PcapResult<String> {
         let file = File::open(file_path.as_ref())
-            .map_err(|e| PcapError::Io(e))?;
+            .map_err(PcapError::Io)?;
         let mut reader = BufReader::new(file);
         let mut hasher = Sha256::new();
         let mut buffer = [0; 8192];
@@ -546,7 +540,7 @@ impl IndexManager {
         loop {
             let bytes_read = reader
                 .read(&mut buffer)
-                .map_err(|e| PcapError::Io(e))?;
+                .map_err(PcapError::Io)?;
             if bytes_read == 0 {
                 break;
             }
@@ -554,7 +548,7 @@ impl IndexManager {
         }
 
         let hash = hasher.finalize();
-        Ok(format!("{:x}", hash))
+        Ok(format!("{hash:x}"))
     }
 
     /// 验证PCAP文件是否与索引中的哈希值匹配
@@ -578,8 +572,7 @@ impl IndexManager {
         )
         .map_err(|e| {
             PcapError::InvalidFormat(format!(
-                "XML反序列化失败: {}",
-                e
+                "XML反序列化失败: {e}"
             ))
         })?;
         index.build_timestamp_index();
@@ -594,8 +587,7 @@ impl IndexManager {
         let xml_content = serde_xml_rs::to_string(index)
             .map_err(|e| {
                 PcapError::InvalidFormat(format!(
-                    "XML序列化失败: {}",
-                    e
+                    "XML序列化失败: {e}"
                 ))
             })?;
         Ok(xml_content)
@@ -610,7 +602,7 @@ impl IndexManager {
             let xml_content =
                 self.serialize_to_xml(index)?;
             fs::write(pidx_file_path, xml_content)
-                .map_err(|e| PcapError::Io(e))?;
+                .map_err(PcapError::Io)?;
         }
         Ok(())
     }

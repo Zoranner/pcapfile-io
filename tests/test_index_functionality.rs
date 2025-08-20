@@ -16,18 +16,18 @@ fn setup_test_environment() -> PcapResult<()> {
     let base_path = Path::new(TEST_BASE_PATH);
     if base_path.exists() {
         fs::remove_dir_all(base_path)
-            .map_err(|e| pcapfile_io::PcapError::Io(e))?;
+            .map_err(pcapfile_io::PcapError::Io)?;
     }
     fs::create_dir_all(base_path)
-        .map_err(|e| pcapfile_io::PcapError::Io(e))?;
+        .map_err(pcapfile_io::PcapError::Io)?;
 
     let dataset_path = base_path.join(TEST_DATASET_NAME);
     if dataset_path.exists() {
         fs::remove_dir_all(&dataset_path)
-            .map_err(|e| pcapfile_io::PcapError::Io(e))?;
+            .map_err(pcapfile_io::PcapError::Io)?;
     }
     fs::create_dir_all(&dataset_path)
-        .map_err(|e| pcapfile_io::PcapError::Io(e))?;
+        .map_err(pcapfile_io::PcapError::Io)?;
 
     Ok(())
 }
@@ -40,8 +40,9 @@ fn create_test_packet(
     let mut data = vec![0u8; size];
 
     // 填充测试数据
-    for i in 0..size {
-        data[i] = (i + sequence as usize) as u8;
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
+        *item = (i + sequence as usize) as u8;
     }
 
     let capture_time = std::time::SystemTime::now();
@@ -98,7 +99,7 @@ fn test_index_generation_and_loading() {
 
     // 验证索引内容
     assert_eq!(index.total_packets, PACKET_COUNT as u64);
-    assert!(index.data_files.files.len() > 0);
+    assert!(!index.data_files.files.is_empty());
 
     // 验证时间戳索引
     assert_eq!(index.timestamp_index.len(), PACKET_COUNT);
@@ -160,7 +161,7 @@ fn test_manual_index_generation() {
         reader.index().get_index().expect("获取索引失败");
 
     assert_eq!(index.total_packets, PACKET_COUNT as u64);
-    assert!(index.data_files.files.len() > 0);
+    assert!(!index.data_files.files.is_empty());
 
     // 验证索引与数据集信息的一致性
     let dataset_info = reader
@@ -171,7 +172,7 @@ fn test_manual_index_generation() {
         PACKET_COUNT as u64
     );
 
-    println!("手动索引生成成功: {:?}", index_path);
+    println!("手动索引生成成功: {index_path:?}");
 }
 
 #[test]
@@ -225,8 +226,7 @@ fn test_index_content_verification() {
     for expected_ts in &expected_timestamps {
         assert!(
             index.timestamp_index.contains_key(expected_ts),
-            "索引中缺少时间戳: {}",
-            expected_ts
+            "索引中缺少时间戳: {expected_ts}"
         );
     }
 
@@ -275,7 +275,7 @@ fn test_index_query_functionality() {
         reader.index().get_index().expect("获取索引失败");
 
     // 测试索引查询功能（如果提供的话）
-    assert!(index.timestamp_index.len() > 0);
+    assert!(!index.timestamp_index.is_empty());
 
     // 验证数据包计数
     assert_eq!(index.total_packets, PACKET_COUNT as u64);

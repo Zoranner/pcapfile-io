@@ -47,20 +47,18 @@ impl PcapFileWriter {
         // 确保目录存在
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(
-                |e| format!("创建目录失败: {}", e),
+                |e| format!("创建目录失败: {e}"),
             )?;
         }
 
         let file = OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .read(true)
             .open(path)
             .map_err(|e| {
-                format!(
-                    "创建文件失败: {:?}, 错误: {}",
-                    path, e
-                )
+                format!("创建文件失败: {path:?}, 错误: {e}")
             })?;
 
         let mut writer = BufWriter::with_capacity(
@@ -70,19 +68,19 @@ impl PcapFileWriter {
 
         // 写入文件头
         let header = PcapFileHeader::new(0);
-        writer.write_all(&header.to_bytes()).map_err(
-            |e| format!("写入文件头失败: {}", e),
-        )?;
+        writer
+            .write_all(&header.to_bytes())
+            .map_err(|e| format!("写入文件头失败: {e}"))?;
 
         if self.auto_flush {
             writer.flush().map_err(|e| {
-                format!("刷新缓冲区失败: {}", e)
+                format!("刷新缓冲区失败: {e}")
             })?;
         }
 
         self.file =
             Some(writer.get_ref().try_clone().map_err(
-                |e| format!("无法克隆文件句柄: {}", e),
+                |e| format!("无法克隆文件句柄: {e}"),
             )?);
         self.writer = Some(writer);
         self.file_path = Some(path.to_path_buf());
@@ -90,7 +88,7 @@ impl PcapFileWriter {
         self.total_size =
             PcapFileHeader::HEADER_SIZE as u64;
 
-        info!("成功创建PCAP文件: {:?}", path);
+        info!("成功创建PCAP文件: {path:?}");
         Ok(())
     }
 
@@ -114,16 +112,16 @@ impl PcapFileWriter {
 
         // 写入数据包
         let packet_bytes = packet.to_bytes();
-        writer.write_all(&packet_bytes).map_err(|e| {
-            format!("写入数据包失败: {}", e)
-        })?;
+        writer
+            .write_all(&packet_bytes)
+            .map_err(|e| format!("写入数据包失败: {e}"))?;
 
         self.packet_count += 1;
         self.total_size += packet_bytes.len() as u64;
 
         if self.auto_flush {
             writer.flush().map_err(|e| {
-                format!("刷新缓冲区失败: {}", e)
+                format!("刷新缓冲区失败: {e}")
             })?;
         }
 
@@ -168,7 +166,7 @@ impl PcapFileWriter {
             .as_nanos();
 
         let new_filename =
-            format!("{}_{}.{}", stem, timestamp, extension);
+            format!("{stem}_{timestamp}.{extension}");
         Ok(current_path.with_file_name(new_filename))
     }
 
@@ -176,7 +174,7 @@ impl PcapFileWriter {
     pub(crate) fn flush(&mut self) -> Result<(), String> {
         if let Some(writer) = &mut self.writer {
             writer.flush().map_err(|e| {
-                format!("刷新缓冲区失败: {}", e)
+                format!("刷新缓冲区失败: {e}")
             })?;
         }
         Ok(())

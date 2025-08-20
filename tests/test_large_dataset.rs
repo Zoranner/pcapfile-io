@@ -18,8 +18,9 @@ fn create_test_packet(
     let mut data = vec![0u8; size];
 
     // 填充测试数据模式 - 使用更复杂的模式以避免压缩
-    for i in 0..size {
-        data[i] = ((sequence * 31 + i * 17) % 256) as u8;
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
+        *item = ((sequence * 31 + i * 17) % 256) as u8;
     }
 
     let capture_time = SystemTime::now();
@@ -58,10 +59,7 @@ fn write_large_dataset(
 
         // 每1万个数据包报告一次进度
         if i % 10000 == 0 && i > 0 {
-            println!(
-                "已写入: {}/{} 个数据包",
-                i, packet_count
-            );
+            println!("已写入: {i}/{packet_count} 个数据包");
         }
     }
 
@@ -94,7 +92,7 @@ fn read_large_dataset(
 
         // 每1万个数据包报告一次进度
         if read_count % 10000 == 0 {
-            println!("已读取: {} 个数据包", read_count);
+            println!("已读取: {read_count} 个数据包");
         }
     }
 
@@ -113,8 +111,7 @@ fn test_large_dataset_basic_functionality() {
     const PACKET_SIZE: usize = 1024; // 1KB每个数据包
 
     println!(
-        "开始大规模数据集测试：{} 个数据包",
-        PACKET_COUNT
+        "开始大规模数据集测试：{PACKET_COUNT} 个数据包"
     );
 
     // 步骤1: 写入大规模数据
@@ -164,18 +161,15 @@ fn test_large_dataset_basic_functionality() {
     // 性能基准验证
     assert!(
         write_throughput > 1000.0,
-        "写入吞吐量太低：{:.0} 包/秒，期望 > 1000 包/秒",
-        write_throughput
+        "写入吞吐量太低：{write_throughput:.0} 包/秒，期望 > 1000 包/秒"
     );
     assert!(
         read_throughput > 5000.0,
-        "读取吞吐量太低：{:.0} 包/秒，期望 > 5000 包/秒",
-        read_throughput
+        "读取吞吐量太低：{read_throughput:.0} 包/秒，期望 > 5000 包/秒"
     );
 
     println!(
-        "✅ 大规模数据集测试通过：{} 个数据包",
-        PACKET_COUNT
+        "✅ 大规模数据集测试通过：{PACKET_COUNT} 个数据包"
     );
 }
 
@@ -219,8 +213,7 @@ fn test_large_dataset_memory_usage() {
 
         if i % 5000 == 0 && i > 0 {
             println!(
-                "内存测试 - 已写入: {}/{} 个数据包",
-                i, PACKET_COUNT
+                "内存测试 - 已写入: {i}/{PACKET_COUNT} 个数据包"
             );
         }
     }
@@ -240,8 +233,7 @@ fn test_large_dataset_memory_usage() {
 
         if read_count % 5000 == 0 {
             println!(
-                "内存测试 - 已读取: {} 个数据包",
-                read_count
+                "内存测试 - 已读取: {read_count} 个数据包"
             );
         }
     }
@@ -252,8 +244,7 @@ fn test_large_dataset_memory_usage() {
     );
 
     println!(
-        "✅ 大规模数据集内存使用测试通过：{} 个数据包",
-        PACKET_COUNT
+        "✅ 大规模数据集内存使用测试通过：{PACKET_COUNT} 个数据包"
     );
 }
 
@@ -269,8 +260,10 @@ fn test_large_dataset_file_segmentation() {
     const PACKET_SIZE: usize = 1024;
 
     // 配置较小的文件分割大小
-    let mut config = WriterConfig::default();
-    config.max_packets_per_file = 1000; // 每个文件1000个数据包
+    let config = WriterConfig {
+        max_packets_per_file: 1000, // 每个文件1000个数据包
+        ..Default::default()
+    };
 
     let mut writer = PcapWriter::new_with_config(
         base_path,
@@ -298,7 +291,7 @@ fn test_large_dataset_file_segmentation() {
     let dataset_info = reader
         .get_dataset_info()
         .expect("获取数据集信息失败");
-    let expected_files = (PACKET_COUNT + 999) / 1000; // 向上取整
+    let expected_files = PACKET_COUNT.div_ceil(1000); // 向上取整
 
     assert_eq!(
         dataset_info.total_packets, PACKET_COUNT as u64,

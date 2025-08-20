@@ -67,7 +67,7 @@ impl PacketProcessor {
             match self.process_packet(packet) {
                 Ok(processed) => results.push(processed),
                 Err(e) => {
-                    warn!("处理数据包失败: {}", e);
+                    warn!("处理数据包失败: {e}");
                     // 根据配置决定是否继续处理其他数据包
                     if !self.config.enable_validation {
                         continue;

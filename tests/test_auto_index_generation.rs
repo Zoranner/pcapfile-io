@@ -17,10 +17,10 @@ fn clean_dataset_directory<P: AsRef<Path>>(
     let path = dataset_path.as_ref();
     if path.exists() {
         fs::remove_dir_all(path)
-            .map_err(|e| pcapfile_io::PcapError::Io(e))?;
+            .map_err(pcapfile_io::PcapError::Io)?;
     }
     fs::create_dir_all(path)
-        .map_err(|e| pcapfile_io::PcapError::Io(e))?;
+        .map_err(pcapfile_io::PcapError::Io)?;
     Ok(())
 }
 
@@ -30,8 +30,9 @@ fn create_test_packet(
     size: usize,
 ) -> PcapResult<DataPacket> {
     let mut data = vec![0u8; size];
-    for i in 0..size {
-        data[i] = (i + sequence as usize) as u8;
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
+        *item = (i + sequence as usize) as u8;
     }
     let capture_time = std::time::SystemTime::now();
     Ok(DataPacket::from_datetime(capture_time, data)?)
@@ -83,7 +84,7 @@ fn test_auto_index_with_small_dataset() {
         reader.index().get_index().expect("获取索引失败");
 
     assert_eq!(index.total_packets, PACKET_COUNT as u64);
-    assert!(index.data_files.files.len() > 0);
+    assert!(!index.data_files.files.is_empty());
     assert_eq!(index.timestamp_index.len(), PACKET_COUNT);
 
     println!("小数据集自动索引测试通过");
@@ -192,9 +193,9 @@ fn test_manual_index_generation_after_write() {
         reader.index().get_index().expect("获取索引失败");
 
     assert_eq!(index.total_packets, PACKET_COUNT as u64);
-    assert!(index.data_files.files.len() > 0);
+    assert!(!index.data_files.files.is_empty());
 
-    println!("手动索引生成测试通过: {:?}", index_path);
+    println!("手动索引生成测试通过: {index_path:?}");
 }
 
 #[test]
@@ -250,8 +251,7 @@ fn test_index_consistency_check() {
     for expected_ts in &expected_timestamps {
         assert!(
             index.timestamp_index.contains_key(expected_ts),
-            "索引中缺少时间戳: {}",
-            expected_ts
+            "索引中缺少时间戳: {expected_ts}"
         );
     }
 

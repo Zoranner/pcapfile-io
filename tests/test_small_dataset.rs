@@ -27,8 +27,9 @@ fn create_test_packet(
     let mut data = vec![0u8; size];
 
     // 填充测试数据
-    for i in 0..size {
-        data[i] = ((sequence + i) % 256) as u8;
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
+        *item = ((sequence + i) % 256) as u8;
     }
 
     let capture_time = SystemTime::now();
@@ -174,8 +175,7 @@ fn test_small_dataset_basic_functionality() {
     assert!(is_valid, "数据一致性验证失败");
 
     println!(
-        "✅ 小规模数据集测试通过：{} 个数据包",
-        PACKET_COUNT
+        "✅ 小规模数据集测试通过：{PACKET_COUNT} 个数据包"
     );
 }
 
@@ -188,8 +188,10 @@ fn test_small_dataset_multiple_files() {
     let dataset_name = "multi_file_test";
 
     // 使用较小的文件大小限制来强制分割
-    let mut config = WriterConfig::default();
-    config.max_packets_per_file = 100; // 每个文件最多100个数据包
+    let config = WriterConfig {
+        max_packets_per_file: 100, // 每个文件最多100个数据包
+        ..Default::default()
+    };
 
     let mut writer = PcapWriter::new_with_config(
         base_path,
