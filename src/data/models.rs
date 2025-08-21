@@ -1,6 +1,6 @@
 use crate::foundation::types::constants;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// PCAP文件头结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,16 +141,14 @@ impl DataPacketHeader {
 
     /// 从DateTime创建数据包头部
     pub fn from_datetime(
-        capture_time: SystemTime,
+        capture_time: DateTime<Utc>,
         packet_length: u32,
         checksum: u32,
     ) -> Result<Self, String> {
-        let duration = capture_time
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| "时间戳无效")?;
-
-        let timestamp_seconds = duration.as_secs() as u32;
-        let timestamp_nanoseconds = duration.subsec_nanos();
+        let timestamp_seconds =
+            capture_time.timestamp() as u32;
+        let timestamp_nanoseconds =
+            capture_time.timestamp_subsec_nanos();
 
         Self::new(
             timestamp_seconds,
@@ -162,7 +160,7 @@ impl DataPacketHeader {
 
     /// 从数据包数据创建头部
     pub fn from_packet_data(
-        capture_time: SystemTime,
+        capture_time: DateTime<Utc>,
         packet_data: &[u8],
     ) -> Result<Self, String> {
         let checksum =
@@ -227,12 +225,12 @@ impl DataPacketHeader {
     }
 
     /// 获取捕获时间
-    pub fn capture_time(&self) -> SystemTime {
-        UNIX_EPOCH
-            + std::time::Duration::new(
-                self.timestamp_seconds as u64,
-                self.timestamp_nanoseconds,
-            )
+    pub fn capture_time(&self) -> DateTime<Utc> {
+        DateTime::from_timestamp(
+            self.timestamp_seconds as i64,
+            self.timestamp_nanoseconds,
+        )
+        .unwrap_or_else(Utc::now)
     }
 }
 
@@ -262,7 +260,7 @@ impl DataPacket {
 
     /// 从DateTime和数据创建数据包
     pub fn from_datetime(
-        capture_time: SystemTime,
+        capture_time: DateTime<Utc>,
         data: Vec<u8>,
     ) -> Result<Self, String> {
         let header = DataPacketHeader::from_packet_data(
@@ -295,7 +293,7 @@ impl DataPacket {
     }
 
     /// 获取捕获时间
-    pub fn capture_time(&self) -> SystemTime {
+    pub fn capture_time(&self) -> DateTime<Utc> {
         self.header.capture_time()
     }
 
@@ -316,12 +314,9 @@ impl DataPacket {
 
     /// 获取时间戳（纳秒）
     pub fn get_timestamp_ns(&self) -> u64 {
-        let duration = self
-            .capture_time()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default();
-        duration.as_secs() * 1_000_000_000
-            + duration.subsec_nanos() as u64
+        let capture_time = self.capture_time();
+        capture_time.timestamp() as u64 * 1_000_000_000
+            + capture_time.timestamp_subsec_nanos() as u64
     }
 
     /// 验证数据包大小是否有效
@@ -505,8 +500,6 @@ impl FileInfo {
     pub fn from_file<P: AsRef<std::path::Path>>(
         file_path: P,
     ) -> Result<Self, std::io::Error> {
-        use chrono::{DateTime, Utc};
-
         let path = file_path.as_ref();
         let metadata = std::fs::metadata(path)?;
 

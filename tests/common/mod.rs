@@ -2,11 +2,11 @@
 //!
 //! 提供所有测试文件共用的辅助函数和工具
 
+use chrono::Utc;
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::time::SystemTime;
 
 use pcapfile_io::{DataPacket, PcapResult};
 
@@ -62,7 +62,7 @@ pub fn create_test_packet(
     {
         *item = (i + sequence as usize) as u8;
     }
-    let capture_time = SystemTime::now();
+    let capture_time = Utc::now();
     Ok(DataPacket::from_datetime(capture_time, data)?)
 }
 
@@ -86,7 +86,7 @@ pub fn create_detailed_test_packet(
         };
     }
 
-    let capture_time = SystemTime::now();
+    let capture_time = Utc::now();
     Ok(DataPacket::from_datetime(capture_time, data)?)
 }
 
@@ -104,7 +104,7 @@ pub fn create_large_test_packet(
         *item = ((sequence * 31 + i * 17) % 256) as u8;
     }
 
-    let capture_time = SystemTime::now();
+    let capture_time = Utc::now();
     Ok(DataPacket::from_datetime(capture_time, data)?)
 }
 
@@ -122,7 +122,7 @@ pub fn create_small_test_packet(
         *item = ((sequence + i) % 256) as u8;
     }
 
-    let capture_time = SystemTime::now();
+    let capture_time = Utc::now();
     Ok(DataPacket::from_datetime(capture_time, data)?)
 }
 

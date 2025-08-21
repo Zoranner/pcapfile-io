@@ -223,7 +223,7 @@ pub mod test_utils {
             .map(|i| TestItem {
                 id: i as u64,
                 data: format!("test_data_{}", i).into_bytes(),
-                timestamp: SystemTime::now(),
+                timestamp: chrono::Utc::now(),
             })
             .collect()
     }

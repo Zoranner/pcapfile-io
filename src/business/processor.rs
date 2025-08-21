@@ -2,8 +2,8 @@
 //!
 //! 实现核心的数据包处理算法、验证规则和业务流程编排。
 
+use chrono::{DateTime, Utc};
 use log::{debug, info, warn};
-use std::time::SystemTime;
 
 use crate::business::config::CommonConfig;
 use crate::data::models::DataPacket;
@@ -45,7 +45,7 @@ impl PacketProcessor {
         let processed = ProcessedPacket {
             original: packet.clone(),
             timestamp_ns: packet.get_timestamp_ns(),
-            processed_time: SystemTime::now(),
+            processed_time: Utc::now(),
             validation_result: ValidationResult::Valid,
         };
 
@@ -116,10 +116,9 @@ impl PacketProcessor {
 
         // 时间戳合理性验证
         let timestamp = packet.get_timestamp_ns();
-        let now = SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos() as u64;
+        let now = Utc::now().timestamp() as u64
+            * 1_000_000_000
+            + Utc::now().timestamp_subsec_nanos() as u64;
 
         if timestamp > now + 1_000_000_000 {
             // 允许1秒的时钟偏差
@@ -192,7 +191,7 @@ pub struct ProcessedPacket {
     /// 时间戳（纳秒）
     pub timestamp_ns: u64,
     /// 处理时间
-    pub processed_time: SystemTime,
+    pub processed_time: DateTime<Utc>,
     /// 验证结果
     pub validation_result: ValidationResult,
 }

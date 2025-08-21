@@ -5,11 +5,12 @@
 //! - 通过Reader读取数据集并访问索引信息
 //! - 索引管理和验证
 
+use chrono::Utc;
 use pcapfile_io::{
     DataPacket, PcapReader, PcapResult, PcapWriter,
     ReaderConfig, WriterConfig,
 };
-use std::{path::Path, time::SystemTime};
+use std::path::Path;
 
 fn main() -> PcapResult<()> {
     // 设置数据集路径
@@ -49,7 +50,7 @@ fn create_test_packet(
         *item = ((sequence + i) % 256) as u8;
     }
 
-    let capture_time = SystemTime::now();
+    let capture_time = Utc::now();
     Ok(DataPacket::from_datetime(capture_time, data)?)
 }
 

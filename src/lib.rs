@@ -27,47 +27,6 @@
 //! - 📊 **完整功能**: 支持所有PCAP格式特性
 //! - 📋 **索引支持**: 高性能PIDX索引文件处理
 //!
-//! ## 快速开始
-//!
-//! ```rust
-//! use pcapfile_io::{
-//!     ReaderConfig,
-//!     WriterConfig,
-//!     DataPacket,
-//!     PcapReader,
-//!     PcapWriter,
-//!     PcapResult,
-//! };
-//!
-//! fn main() -> PcapResult<()> {
-//!     // 创建写入器配置
-//!     let writer_config = WriterConfig::default();
-//!
-//!     // 写入PCAP数据集
-//!     let mut writer = PcapWriter::new_with_config("./data", "example_dataset", writer_config)?;
-//!
-//!     let data = b"Hello, World!".to_vec();
-//!     let packet = DataPacket::from_datetime(
-//!         std::time::SystemTime::now(),
-//!         data,
-//!     )?;
-//!
-//!     writer.write_packet(&packet)?;
-//!     writer.finalize()?;
-//!
-//!     // 创建读取器配置
-//!     let reader_config = ReaderConfig::default();
-//!
-//!     // 读取PCAP数据集
-//!     let mut reader = PcapReader::new_with_config("./data", "example_dataset", reader_config)?;
-//!
-//!     while let Some(packet) = reader.read_packet()? {
-//!         println!("读取数据包: {:?}", packet);
-//!     }
-//!
-//!     Ok(())
-//! }
-//! ```
 
 // 分层架构模块声明
 pub mod api;

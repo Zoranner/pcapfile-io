@@ -45,7 +45,7 @@ fn main() -> Result<()> {
     let mut writer = Writer::new("my_dataset")?;
 
     let data = b"Hello, World!".to_vec();
-    let packet = DataPacket::from_datetime(SystemTime::now(), data)?;
+    let packet = DataPacket::from_datetime(chrono::Utc::now(), data)?;
 
     writer.write_packet(&packet)?;
     writer.flush()?;
@@ -74,7 +74,7 @@ fn batch_operations() -> Result<()> {
     let mut packets = Vec::new();
     for i in 0..1000 {
         let data = format!("批量数据包 #{i}").into_bytes();
-        let packet = DataPacket::from_datetime(SystemTime::now(), data)?;
+        let packet = DataPacket::from_datetime(chrono::Utc::now(), data)?;
         packets.push(packet);
     }
 

@@ -2,9 +2,9 @@
 //!
 //! 提供高效的文件信息缓存策略，减少重复的文件系统访问，提升性能。
 
+use chrono::{DateTime, Duration, Utc};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
 
 use crate::data::models::FileInfo;
 
@@ -54,38 +54,32 @@ impl Default for CacheStats {
 #[derive(Debug, Clone)]
 pub struct FileInfoCacheItem {
     pub file_info: FileInfo,
-    pub cache_time: SystemTime,
+    pub cache_time: DateTime<Utc>,
 }
 
 impl FileInfoCacheItem {
     pub fn new(file_info: FileInfo) -> Self {
         Self {
             file_info,
-            cache_time: SystemTime::now(),
+            cache_time: Utc::now(),
         }
     }
 
     pub fn is_valid(
         &self,
         current_file_size: u64,
-        current_write_time: SystemTime,
+        current_write_time: DateTime<Utc>,
     ) -> bool {
         self.file_info.file_size == current_file_size
             && self.file_info.modified_time
-                == current_write_time
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs()
-                    .to_string()
+                == current_write_time.to_rfc3339()
     }
 
     pub fn is_expired(
         &self,
         expiration_duration: Duration,
     ) -> bool {
-        SystemTime::now()
-            .duration_since(self.cache_time)
-            .unwrap_or(Duration::ZERO)
+        Utc::now().signed_duration_since(self.cache_time)
             >= expiration_duration
     }
 }
@@ -96,7 +90,7 @@ pub struct CacheStatistics {
     pub total_entries: usize,
     pub max_entries: usize,
     pub expired_entries: usize,
-    pub last_cleanup_time: SystemTime,
+    pub last_cleanup_time: DateTime<Utc>,
 }
 
 impl CacheStatistics {
@@ -117,7 +111,7 @@ pub struct FileInfoCache {
     max_entries: usize,
     cache_expiration: Duration,
     cleanup_interval: Duration,
-    last_cleanup: Arc<Mutex<SystemTime>>,
+    last_cleanup: Arc<Mutex<DateTime<Utc>>>,
     hit_count: Arc<Mutex<u64>>,
     miss_count: Arc<Mutex<u64>>,
 }
@@ -127,11 +121,9 @@ impl FileInfoCache {
         Self {
             cache: Arc::new(Mutex::new(HashMap::new())),
             max_entries,
-            cache_expiration: Duration::from_secs(30 * 60), // 30分钟
-            cleanup_interval: Duration::from_secs(10 * 60), // 10分钟
-            last_cleanup: Arc::new(Mutex::new(
-                SystemTime::now(),
-            )),
+            cache_expiration: Duration::minutes(30), // 30分钟
+            cleanup_interval: Duration::minutes(10), // 10分钟
+            last_cleanup: Arc::new(Mutex::new(Utc::now())),
             hit_count: Arc::new(Mutex::new(0)),
             miss_count: Arc::new(Mutex::new(0)),
         }
@@ -159,9 +151,13 @@ impl FileInfoCache {
                 if let Ok(modified_time) =
                     metadata.modified()
                 {
+                    let modified_datetime =
+                        DateTime::<Utc>::from(
+                            modified_time,
+                        );
                     if item.is_valid(
                         metadata.len(),
-                        modified_time,
+                        modified_datetime,
                     ) {
                         // 缓存命中
                         if let Ok(mut hit_count) =
@@ -260,11 +256,9 @@ impl FileInfoCache {
             .last_cleanup
             .lock()
             .map_err(|_| "清理时间锁定失败")?;
-        let now = SystemTime::now();
+        let now = Utc::now();
 
-        if now
-            .duration_since(*last_cleanup)
-            .unwrap_or(Duration::ZERO)
+        if now.signed_duration_since(*last_cleanup)
             >= self.cleanup_interval
         {
             self.cleanup_expired_entries(cache)?;

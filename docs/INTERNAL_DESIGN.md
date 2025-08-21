@@ -610,9 +610,9 @@ pub struct PidxIndex {
 |------|------|------|
 | file_path | String | 文件路径 |
 | file_size | u64 | 文件大小 |
-| last_write_time | SystemTime | 最后修改时间 |
+| last_write_time | DateTime\<Utc\> | 最后修改时间 |
 | packet_count | u64 | 数据包数量 |
-| cache_time | SystemTime | 缓存时间 |
+| cache_time | DateTime\<Utc\> | 缓存时间 |
 
 #### 缓存失效策略
 
@@ -643,7 +643,7 @@ pub struct PidxIndex {
 | total_entries | usize | 当前缓存条目数 |
 | max_entries | usize | 最大缓存条目数 |
 | expired_entries | usize | 过期条目数 |
-| last_cleanup_time | SystemTime | 最后清理时间 |
+| last_cleanup_time | DateTime\<Utc\> | 最后清理时间 |
 
 ## 错误处理机制
 
