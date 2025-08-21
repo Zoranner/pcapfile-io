@@ -12,7 +12,7 @@ use pcapfile_io::{DataPacket, PcapResult};
 
 /// 测试输出基础路径
 #[allow(dead_code)]
-pub const TEST_BASE_PATH: &str = "test_output";
+pub const TEST_BASE_PATH: &str = "tests/output";
 
 /// 清理指定数据集目录
 #[allow(dead_code)]
