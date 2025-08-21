@@ -3,8 +3,7 @@
 //! 测试大规模数据（10万个数据包）的写入读取功能和性能
 
 use pcapfile_io::{
-    PcapReader, PcapResult, PcapWriter,
-    WriterConfig,
+    PcapReader, PcapResult, PcapWriter, WriterConfig,
 };
 use std::path::Path;
 use std::time::Instant;

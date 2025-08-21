@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local, Datelike, Timelike, Utc};
+use chrono::{DateTime, Datelike, Local, Timelike, Utc};
 
 /// 字节数组扩展方法
 pub trait ByteArrayExtensions {
@@ -159,10 +159,7 @@ impl DateTimeExtensions for DateTime<Utc> {
         let second = local_time.second();
         let nanosecond = local_time.nanosecond(); // 完整的9位纳秒
 
-        format!(
-            "{:02}{:02}{:02}_{:02}{:02}{:02}_{:09}",
-            year, month, day, hour, minute, second, nanosecond
-        )
+        format!("{year:02}{month:02}{day:02}_{hour:02}{minute:02}{second:02}_{nanosecond:09}")
     }
 }
 

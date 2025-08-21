@@ -3,16 +3,17 @@
 //! 测试基本的读写功能和索引生成
 
 use pcapfile_io::{
-    PcapReader, PcapResult, PcapWriter,
-    ReaderConfig, WriterConfig,
+    PcapReader, PcapResult, PcapWriter, ReaderConfig,
+    WriterConfig,
 };
 use std::path::Path;
 use tempfile::TempDir;
 
 mod common;
 use common::{
-    PacketInfo, create_small_test_packet as create_test_packet,
     create_packet_info,
+    create_small_test_packet as create_test_packet,
+    PacketInfo,
 };
 
 /// 写入小数据集
@@ -33,7 +34,8 @@ fn write_small_dataset(
 
     for i in 0..packet_count {
         let packet = create_test_packet(i, packet_size)?;
-        written_packets.push(create_packet_info(&packet, i));
+        written_packets
+            .push(create_packet_info(&packet, i));
         writer.write_packet(&packet)?;
     }
 
@@ -57,7 +59,10 @@ fn read_test_packets(
     let mut packet_index = 0;
 
     while let Some(packet) = reader.read_packet()? {
-        read_packets.push(create_packet_info(&packet, packet_index));
+        read_packets.push(create_packet_info(
+            &packet,
+            packet_index,
+        ));
         packet_index += 1;
     }
 

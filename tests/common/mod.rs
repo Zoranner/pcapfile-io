@@ -2,11 +2,11 @@
 //!
 //! 提供所有测试文件共用的辅助函数和工具
 
+use std::collections::hash_map::DefaultHasher;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::time::SystemTime;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 use pcapfile_io::{DataPacket, PcapResult};
 
@@ -31,7 +31,9 @@ pub fn clean_dataset_directory<P: AsRef<Path>>(
 
 /// 设置测试环境，为每个测试创建唯一目录并返回路径
 #[allow(dead_code)]
-pub fn setup_test_environment(test_name: &str) -> PcapResult<std::path::PathBuf> {
+pub fn setup_test_environment(
+    test_name: &str,
+) -> PcapResult<std::path::PathBuf> {
     let base_path = Path::new(TEST_BASE_PATH);
     if !base_path.exists() {
         fs::create_dir_all(base_path)
@@ -56,7 +58,8 @@ pub fn create_test_packet(
     size: usize,
 ) -> PcapResult<DataPacket> {
     let mut data = vec![0u8; size];
-    for (i, item) in data.iter_mut().enumerate().take(size) {
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
         *item = (i + sequence as usize) as u8;
     }
     let capture_time = SystemTime::now();
@@ -72,7 +75,8 @@ pub fn create_detailed_test_packet(
     let mut data = vec![0u8; size];
 
     // 创建具有清晰模式的数据，以便检测损坏
-    for (i, item) in data.iter_mut().enumerate().take(size) {
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
         *item = match i % 4 {
             0 => (sequence % 256) as u8,
             1 => ((sequence >> 8) % 256) as u8,
@@ -95,7 +99,8 @@ pub fn create_large_test_packet(
     let mut data = vec![0u8; size];
 
     // 填充测试数据模式 - 使用更复杂的模式以避免压缩
-    for (i, item) in data.iter_mut().enumerate().take(size) {
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
         *item = ((sequence * 31 + i * 17) % 256) as u8;
     }
 
@@ -112,7 +117,8 @@ pub fn create_small_test_packet(
     let mut data = vec![0u8; size];
 
     // 填充测试数据
-    for (i, item) in data.iter_mut().enumerate().take(size) {
+    for (i, item) in data.iter_mut().enumerate().take(size)
+    {
         *item = ((sequence + i) % 256) as u8;
     }
 
@@ -148,7 +154,8 @@ pub fn create_packet_details(
     index: usize,
 ) -> PacketDetails {
     let data_hash = calculate_data_hash(&packet.data);
-    let first_16_bytes = packet.data.iter().take(16).cloned().collect();
+    let first_16_bytes =
+        packet.data.iter().take(16).cloned().collect();
     let last_16_bytes = packet
         .data
         .iter()
@@ -188,6 +195,11 @@ pub fn create_packet_info(
         index,
         packet_length: packet.packet_length() as u32,
         checksum: packet.checksum(),
-        first_bytes: packet.data.iter().take(16).cloned().collect(),
+        first_bytes: packet
+            .data
+            .iter()
+            .take(16)
+            .cloned()
+            .collect(),
     }
 }

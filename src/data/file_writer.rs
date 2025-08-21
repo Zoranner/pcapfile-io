@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use crate::business::config::CommonConfig;
 use crate::data::models::{DataPacket, PcapFileHeader};
 
-
 /// PCAP文件写入器
 pub struct PcapFileWriter {
     file: Option<File>,

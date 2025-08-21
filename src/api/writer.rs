@@ -351,7 +351,7 @@ impl PcapWriter {
     fn create_new_file(&mut self) -> PcapResult<()> {
         // 生成符合标准的文件名: data_yyMMdd_HHmmss_nnnnnnnnn.pcap
         let time_str = Utc::now().to_filename_string();
-        let filename = format!("data_{}.pcap", time_str);
+        let filename = format!("data_{time_str}.pcap");
 
         let file_path = self.dataset_path.join(&filename);
 

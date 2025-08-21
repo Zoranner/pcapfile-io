@@ -3,17 +3,18 @@
 use std::fs;
 
 use pcapfile_io::{
-    PcapReader, PcapWriter,
-    ReaderConfig, WriterConfig,
+    PcapReader, PcapWriter, ReaderConfig, WriterConfig,
 };
 
 mod common;
-use common::{setup_test_environment, create_test_packet};
+use common::{create_test_packet, setup_test_environment};
 
 #[test]
 fn test_index_generation_and_loading() {
-    const TEST_NAME: &str = "test_index_generation_and_loading";
-    let dataset_path = setup_test_environment(TEST_NAME).expect("设置测试环境失败");
+    const TEST_NAME: &str =
+        "test_index_generation_and_loading";
+    let dataset_path = setup_test_environment(TEST_NAME)
+        .expect("设置测试环境失败");
 
     const PACKET_COUNT: usize = 5000;
     const PACKET_SIZE: usize = 1024;
@@ -72,7 +73,8 @@ fn test_index_generation_and_loading() {
 #[test]
 fn test_manual_index_generation() {
     const TEST_NAME: &str = "test_manual_index_generation";
-    let dataset_path = setup_test_environment(TEST_NAME).expect("设置测试环境失败");
+    let dataset_path = setup_test_environment(TEST_NAME)
+        .expect("设置测试环境失败");
 
     const PACKET_COUNT: usize = 3000;
     const PACKET_SIZE: usize = 512;
@@ -134,8 +136,10 @@ fn test_manual_index_generation() {
 
 #[test]
 fn test_index_content_verification() {
-    const TEST_NAME: &str = "test_index_content_verification";
-    let dataset_path = setup_test_environment(TEST_NAME).expect("设置测试环境失败");
+    const TEST_NAME: &str =
+        "test_index_content_verification";
+    let dataset_path = setup_test_environment(TEST_NAME)
+        .expect("设置测试环境失败");
 
     const PACKET_COUNT: usize = 2000;
     const PACKET_SIZE: usize = 256;
@@ -190,8 +194,10 @@ fn test_index_content_verification() {
 
 #[test]
 fn test_index_query_functionality() {
-    const TEST_NAME: &str = "test_index_query_functionality";
-    let dataset_path = setup_test_environment(TEST_NAME).expect("设置测试环境失败");
+    const TEST_NAME: &str =
+        "test_index_query_functionality";
+    let dataset_path = setup_test_environment(TEST_NAME)
+        .expect("设置测试环境失败");
 
     const PACKET_COUNT: usize = 1500;
     const PACKET_SIZE: usize = 512;
@@ -247,7 +253,8 @@ fn test_index_query_functionality() {
 #[ignore] // 暂时忽略此测试，索引重建检测逻辑需要进一步调试
 fn test_index_rebuild_detection() {
     const TEST_NAME: &str = "test_index_rebuild_detection";
-    let dataset_path = setup_test_environment(TEST_NAME).expect("设置测试环境失败");
+    let dataset_path = setup_test_environment(TEST_NAME)
+        .expect("设置测试环境失败");
 
     const PACKET_COUNT: usize = 1000;
     const PACKET_SIZE: usize = 256;
@@ -320,7 +327,10 @@ fn test_index_rebuild_detection() {
         .index()
         .needs_rebuild()
         .expect("检查重建状态失败");
-    assert!(needs_rebuild, "删除pcap文件后索引应该需要重建");
+    assert!(
+        needs_rebuild,
+        "删除pcap文件后索引应该需要重建"
+    );
 
     println!("索引重建检测测试通过");
 }

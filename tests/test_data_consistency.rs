@@ -2,16 +2,14 @@
 //!
 //! 测试写入和读取的一致性，确保数据完整性和可靠性
 
-use pcapfile_io::{
-    PcapReader, PcapResult, PcapWriter,
-};
+use pcapfile_io::{PcapReader, PcapResult, PcapWriter};
 use std::path::Path;
 use tempfile::TempDir;
 
 mod common;
 use common::{
-    PacketDetails, create_detailed_test_packet,
-    create_packet_details,
+    create_detailed_test_packet, create_packet_details,
+    PacketDetails,
 };
 
 /// 写入测试数据包并返回详细信息

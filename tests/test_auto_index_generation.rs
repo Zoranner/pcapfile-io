@@ -5,8 +5,7 @@
 use std::path::Path;
 
 use pcapfile_io::{
-    PcapReader, PcapWriter,
-    ReaderConfig, WriterConfig,
+    PcapReader, PcapWriter, ReaderConfig, WriterConfig,
 };
 
 mod common;
@@ -14,9 +13,10 @@ use common::{clean_dataset_directory, create_test_packet};
 
 #[test]
 fn test_auto_index_with_small_dataset() {
-    const TEST_NAME: &str = "test_auto_index_with_small_dataset";
+    const TEST_NAME: &str =
+        "test_auto_index_with_small_dataset";
     let dataset_path = Path::new("test_output");
-    clean_dataset_directory(&dataset_path.join(TEST_NAME))
+    clean_dataset_directory(dataset_path.join(TEST_NAME))
         .expect("清理数据集目录失败");
 
     const PACKET_COUNT: usize = 500;
@@ -27,7 +27,7 @@ fn test_auto_index_with_small_dataset() {
     config.common.enable_index_cache = true;
 
     let mut writer = PcapWriter::new_with_config(
-        &dataset_path,
+        dataset_path,
         TEST_NAME,
         config,
     )
@@ -46,7 +46,7 @@ fn test_auto_index_with_small_dataset() {
 
     // 步骤2: 使用Reader验证自动生成的索引
     let mut reader = PcapReader::new_with_config(
-        &dataset_path,
+        dataset_path,
         TEST_NAME,
         ReaderConfig::default(),
     )
@@ -66,9 +66,10 @@ fn test_auto_index_with_small_dataset() {
 
 #[test]
 fn test_auto_index_with_multiple_files() {
-    const TEST_NAME: &str = "test_auto_index_with_multiple_files";
+    const TEST_NAME: &str =
+        "test_auto_index_with_multiple_files";
     let dataset_path = Path::new("test_output");
-    clean_dataset_directory(&dataset_path.join(TEST_NAME))
+    clean_dataset_directory(dataset_path.join(TEST_NAME))
         .expect("清理数据集目录失败");
 
     const TOTAL_PACKETS: usize = 3000;
@@ -80,7 +81,7 @@ fn test_auto_index_with_multiple_files() {
     config.max_packets_per_file = 1000; // 每1000个数据包一个文件
 
     let mut writer = PcapWriter::new_with_config(
-        &dataset_path,
+        dataset_path,
         TEST_NAME,
         config,
     )
@@ -99,7 +100,7 @@ fn test_auto_index_with_multiple_files() {
 
     // 验证自动生成的索引
     let mut reader = PcapReader::new_with_config(
-        &dataset_path,
+        dataset_path,
         TEST_NAME,
         ReaderConfig::default(),
     )
@@ -118,9 +119,10 @@ fn test_auto_index_with_multiple_files() {
 
 #[test]
 fn test_manual_index_generation_after_write() {
-    const TEST_NAME: &str = "test_manual_index_generation_after_write";
+    const TEST_NAME: &str =
+        "test_manual_index_generation_after_write";
     let dataset_path = Path::new("test_output");
-    clean_dataset_directory(&dataset_path.join(TEST_NAME))
+    clean_dataset_directory(dataset_path.join(TEST_NAME))
         .expect("清理数据集目录失败");
 
     const PACKET_COUNT: usize = 1500;
@@ -131,7 +133,7 @@ fn test_manual_index_generation_after_write() {
     config.common.enable_index_cache = false; // 禁用自动索引
 
     let mut writer = PcapWriter::new_with_config(
-        &dataset_path,
+        dataset_path,
         TEST_NAME,
         config,
     )
@@ -150,7 +152,7 @@ fn test_manual_index_generation_after_write() {
 
     // 步骤2: 手动生成索引
     let mut reader = PcapReader::new_with_config(
-        &dataset_path,
+        dataset_path,
         TEST_NAME,
         ReaderConfig::default(),
     )
@@ -176,7 +178,7 @@ fn test_manual_index_generation_after_write() {
 fn test_index_consistency_check() {
     const TEST_NAME: &str = "test_index_consistency_check";
     let dataset_path = Path::new("test_output");
-    clean_dataset_directory(&dataset_path.join(TEST_NAME))
+    clean_dataset_directory(dataset_path.join(TEST_NAME))
         .expect("清理数据集目录失败");
 
     const PACKET_COUNT: usize = 2000;
@@ -184,7 +186,7 @@ fn test_index_consistency_check() {
 
     // 创建数据集
     let mut writer = PcapWriter::new_with_config(
-        &dataset_path,
+        dataset_path,
         TEST_NAME,
         WriterConfig::default(),
     )
@@ -205,7 +207,7 @@ fn test_index_consistency_check() {
 
     // 验证索引一致性
     let mut reader = PcapReader::new_with_config(
-        &dataset_path,
+        dataset_path,
         TEST_NAME,
         ReaderConfig::default(),
     )
