@@ -17,20 +17,20 @@ fn main() -> PcapResult<()> {
 
     // 确保目录存在
     if dataset_path.exists() {
-        std::fs::remove_dir_all(&dataset_path)?;
+        std::fs::remove_dir_all(dataset_path)?;
     }
-    std::fs::create_dir_all(&dataset_path)?;
+    std::fs::create_dir_all(dataset_path)?;
 
     println!("=== PcapFile.IO 数据集使用示例 ===\n");
 
     // 第一步：创建数据集并写入数据包
-    create_dataset(&dataset_path)?;
+    create_dataset(dataset_path)?;
 
     // 第二步：读取数据集并访问索引信息
-    read_dataset(&dataset_path)?;
+    read_dataset(dataset_path)?;
 
     // 第三步：演示索引管理功能
-    demonstrate_index_management(&dataset_path)?;
+    demonstrate_index_management(dataset_path)?;
 
     println!("\n=== 示例完成 ===");
     Ok(())
