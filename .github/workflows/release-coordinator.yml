@@ -10,7 +10,7 @@ on:
 
 jobs:
   common-test:
-    name: Run Tests
+    name: Tests & Checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
