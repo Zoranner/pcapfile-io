@@ -68,10 +68,7 @@ impl PacketProcessor {
                 Ok(processed) => results.push(processed),
                 Err(e) => {
                     warn!("处理数据包失败: {e}");
-                    // 根据配置决定是否继续处理其他数据包
-                    if !self.config.enable_validation {
-                        continue;
-                    }
+                    // 业务验证失败时直接返回错误
                     return Err(e);
                 }
             }
@@ -90,9 +87,7 @@ impl PacketProcessor {
         &self,
         packet: &DataPacket,
     ) -> PcapResult<()> {
-        if !self.config.enable_validation {
-            return Ok(());
-        }
+        // 业务层验证总是执行
 
         // 大小验证
         if packet.packet_length()

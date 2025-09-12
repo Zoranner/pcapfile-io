@@ -11,7 +11,7 @@ use crate::business::config::ReaderConfig;
 use crate::business::index::IndexManager;
 use crate::data::file_reader::PcapFileReader;
 use crate::data::models::{
-    DataPacket, DatasetInfo, FileInfo,
+    DataPacket, DatasetInfo, FileInfo, ValidatedPacket,
 };
 use crate::foundation::error::{PcapError, PcapResult};
 
@@ -244,15 +244,18 @@ impl PcapReader {
         &self.dataset_name
     }
 
-    /// 读取下一个数据包
+    /// 读取下一个数据包（默认方法，带校验结果）
+    ///
+    /// 从当前位置读取下一个数据包，包含校验状态信息。如果当前文件读取完毕，
+    /// 会自动切换到下一个文件。
     ///
     /// # 返回
-    /// - `Ok(Some(packet))` - 成功读取到数据包
+    /// - `Ok(Some(result))` - 成功读取到数据包和校验结果
     /// - `Ok(None)` - 到达文件末尾，无更多数据包
     /// - `Err(error)` - 读取过程中发生错误
     pub fn read_packet(
         &mut self,
-    ) -> PcapResult<Option<DataPacket>> {
+    ) -> PcapResult<Option<ValidatedPacket>> {
         self.initialize()?;
 
         // 确保当前文件已打开
@@ -263,9 +266,9 @@ impl PcapReader {
                 self.current_reader
             {
                 match reader.read_packet() {
-                    Ok(Some(packet)) => {
+                    Ok(Some(result)) => {
                         self.current_position += 1;
-                        return Ok(Some(packet));
+                        return Ok(Some(result));
                     }
                     Ok(None) => {
                         // 当前文件读取完毕，尝试切换到下一个文件
@@ -284,13 +287,57 @@ impl PcapReader {
         }
     }
 
-    /// 批量读取多个数据包
+    /// 读取下一个数据包（仅返回数据，不返回校验信息）
+    ///
+    /// 从当前位置读取下一个数据包，仅返回数据包本身。如果当前文件读取完毕，
+    /// 会自动切换到下一个文件。
+    ///
+    /// # 返回
+    /// - `Ok(Some(packet))` - 成功读取到数据包
+    /// - `Ok(None)` - 到达文件末尾，无更多数据包
+    /// - `Err(error)` - 读取过程中发生错误
+    pub fn read_packet_data_only(
+        &mut self,
+    ) -> PcapResult<Option<DataPacket>> {
+        match self.read_packet()? {
+            Some(result) => Ok(Some(result.packet)),
+            None => Ok(None),
+        }
+    }
+
+    /// 批量读取多个数据包（默认方法，带校验结果）
     ///
     /// # 参数
     /// - `count` - 要读取的数据包数量
     ///
     /// # 返回
     pub fn read_packets(
+        &mut self,
+        count: usize,
+    ) -> PcapResult<Vec<ValidatedPacket>> {
+        self.initialize()?;
+
+        let mut results = Vec::with_capacity(count);
+
+        // 批量读取指定数量的数据包
+        for _ in 0..count {
+            if let Some(result) = self.read_packet()? {
+                results.push(result);
+            } else {
+                break; // 没有更多数据包
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// 批量读取多个数据包（仅返回数据，不返回校验信息）
+    ///
+    /// # 参数
+    /// - `count` - 要读取的数据包数量
+    ///
+    /// # 返回
+    pub fn read_packets_data_only(
         &mut self,
         count: usize,
     ) -> PcapResult<Vec<DataPacket>> {
@@ -300,7 +347,9 @@ impl PcapReader {
 
         // 批量读取指定数量的数据包
         for _ in 0..count {
-            if let Some(packet) = self.read_packet()? {
+            if let Some(packet) =
+                self.read_packet_data_only()?
+            {
                 packets.push(packet);
             } else {
                 break; // 没有更多数据包

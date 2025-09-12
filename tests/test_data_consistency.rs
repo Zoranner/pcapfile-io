@@ -49,9 +49,13 @@ fn read_and_verify_test_data(
     let mut read_details = Vec::new();
     let mut packet_index = 0;
 
-    while let Some(packet) = reader.read_packet()? {
-        let details =
-            create_packet_details(&packet, packet_index);
+    while let Some(validated_packet) =
+        reader.read_packet()?
+    {
+        let details = create_packet_details(
+            &validated_packet.packet,
+            packet_index,
+        );
         read_details.push(details);
         packet_index += 1;
     }

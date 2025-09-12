@@ -2,6 +2,57 @@ use crate::foundation::types::constants;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// 带校验结果的数据包
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidatedPacket {
+    /// 数据包
+    pub packet: DataPacket,
+    /// 校验是否通过
+    pub is_valid: bool,
+}
+
+impl ValidatedPacket {
+    /// 创建带校验结果的数据包
+    pub fn new(packet: DataPacket, is_valid: bool) -> Self {
+        Self { packet, is_valid }
+    }
+
+    /// 检查是否有效
+    pub fn is_valid(&self) -> bool {
+        self.is_valid
+    }
+
+    /// 检查是否无效
+    pub fn is_invalid(&self) -> bool {
+        !self.is_valid
+    }
+
+    /// 获取时间戳（纳秒）- 委托给内部数据包
+    pub fn get_timestamp_ns(&self) -> u64 {
+        self.packet.get_timestamp_ns()
+    }
+
+    /// 获取数据包长度 - 委托给内部数据包
+    pub fn packet_length(&self) -> usize {
+        self.packet.packet_length()
+    }
+
+    /// 获取捕获时间 - 委托给内部数据包
+    pub fn capture_time(&self) -> DateTime<Utc> {
+        self.packet.capture_time()
+    }
+
+    /// 获取校验和 - 委托给内部数据包
+    pub fn checksum(&self) -> u32 {
+        self.packet.checksum()
+    }
+
+    /// 获取总大小 - 委托给内部数据包
+    pub fn total_size(&self) -> usize {
+        self.packet.total_size()
+    }
+}
+
 /// PCAP文件头结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PcapFileHeader {

@@ -58,9 +58,11 @@ fn read_test_packets(
     let mut read_packets = Vec::new();
     let mut packet_index = 0;
 
-    while let Some(packet) = reader.read_packet()? {
+    while let Some(validated_packet) =
+        reader.read_packet()?
+    {
         read_packets.push(create_packet_info(
-            &packet,
+            &validated_packet.packet,
             packet_index,
         ));
         packet_index += 1;

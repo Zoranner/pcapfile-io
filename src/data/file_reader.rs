@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::business::config::CommonConfig;
 use crate::data::models::{
     DataPacket, DataPacketHeader, PcapFileHeader,
+    ValidatedPacket,
 };
 use crate::foundation::error::{PcapError, PcapResult};
 use crate::foundation::utils::calculate_crc32;
@@ -118,7 +119,7 @@ impl PcapFileReader {
     /// 读取下一个数据包
     pub(crate) fn read_packet(
         &mut self,
-    ) -> PcapResult<Option<DataPacket>> {
+    ) -> PcapResult<Option<ValidatedPacket>> {
         let reader =
             self.reader.as_mut().ok_or_else(|| {
                 PcapError::InvalidState(
@@ -152,15 +153,18 @@ impl PcapFileReader {
             .map_err(PcapError::Io)?;
 
         // 验证校验和
-        if self.configuration.enable_validation {
-            let calculated_checksum =
-                calculate_crc32(&data);
-            if calculated_checksum != header.checksum {
-                return Err(PcapError::CorruptedData(format!(
-                    "{}。期望: 0x{:08X}, 实际: 0x{:08X}",
-                    ERR_CHECKSUM_MISMATCH, header.checksum, calculated_checksum
-                )));
-            }
+        let calculated_checksum = calculate_crc32(&data);
+        let is_valid =
+            calculated_checksum == header.checksum;
+
+        // 如果校验失败，记录警告日志
+        if !is_valid {
+            log::warn!(
+                "{}。期望: 0x{:08X}, 实际: 0x{:08X}",
+                ERR_CHECKSUM_MISMATCH,
+                header.checksum,
+                calculated_checksum
+            );
         }
 
         self.packet_count += 1;
@@ -168,11 +172,14 @@ impl PcapFileReader {
         let packet = DataPacket::new(header, data)
             .map_err(PcapError::InvalidFormat)?;
 
+        let result = ValidatedPacket::new(packet, is_valid);
+
         debug!(
-            "已读取数据包，当前计数: {}",
-            self.packet_count
+            "已读取数据包，当前计数: {}, 校验状态: {}",
+            self.packet_count,
+            if is_valid { "有效" } else { "无效" }
         );
-        Ok(Some(packet))
+        Ok(Some(result))
     }
 
     /// 关闭文件

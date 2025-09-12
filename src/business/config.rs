@@ -10,8 +10,6 @@ pub struct CommonConfig {
     pub buffer_size: usize,
     /// 最大数据包大小（字节）
     pub max_packet_size: usize,
-    /// 是否启用数据验证
-    pub enable_validation: bool,
     /// 是否启用压缩
     pub enable_compression: bool,
     /// 索引缓存大小（条目数）
@@ -27,7 +25,6 @@ impl Default for CommonConfig {
         Self {
             buffer_size: 8192,
             max_packet_size: constants::MAX_PACKET_SIZE,
-            enable_validation: true,
             enable_compression: false,
             index_cache_size: 1000,
             enable_index_cache: true,
@@ -229,7 +226,6 @@ impl WriterConfig {
     /// 创建快速写入配置（适合临时数据）
     pub fn fast_write() -> Self {
         let mut config = Self::default();
-        config.common.enable_validation = false;
         config.common.enable_index_cache = false;
         config.auto_flush = false;
         config.index_flush_interval = 30000; // 30秒
