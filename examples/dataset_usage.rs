@@ -59,9 +59,10 @@ fn create_dataset(dataset_path: &Path) -> PcapResult<()> {
     println!("1. 创建数据集并写入数据包...");
 
     // 配置写入器
-    let mut config = WriterConfig::default();
-    config.common.enable_index_cache = true; // 启用自动索引生成
-    config.max_packets_per_file = 1000; // 每1000个数据包一个文件
+    let config = WriterConfig {
+        max_packets_per_file: 1000, // 每1000个数据包一个文件
+        ..Default::default()
+    };
 
     let mut writer = PcapWriter::new_with_config(
         dataset_path,

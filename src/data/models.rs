@@ -174,14 +174,6 @@ impl DataPacketHeader {
         packet_length: u32,
         checksum: u32,
     ) -> Result<Self, String> {
-        if !DataPacket::is_valid_size(
-            packet_length as usize,
-        ) {
-            return Err(format!(
-                "无效的数据包长度: {packet_length}"
-            ));
-        }
-
         Ok(Self {
             timestamp_seconds,
             timestamp_nanoseconds,
@@ -370,17 +362,8 @@ impl DataPacket {
             + capture_time.timestamp_subsec_nanos() as u64
     }
 
-    /// 验证数据包大小是否有效
-    pub fn is_valid_size(size: usize) -> bool {
-        size > 0 && size <= constants::MAX_PACKET_SIZE
-    }
-
     /// 验证数据包是否有效
     pub fn is_valid(&self) -> bool {
-        if !Self::is_valid_size(self.packet_length()) {
-            return false;
-        }
-
         let calculated_checksum =
             crate::foundation::utils::calculate_crc32(
                 &self.data,

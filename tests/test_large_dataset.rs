@@ -22,12 +22,8 @@ fn write_large_dataset(
     let config = WriterConfig {
         max_packets_per_file: 2000,
         auto_flush: false,
-        common: pcapfile_io::CommonConfig {
-            buffer_size: 64 * 1024, // 64KB
-            index_cache_size: 5000,
-            enable_index_cache: true,
-            ..Default::default()
-        },
+        buffer_size: 64 * 1024, // 64KB
+        index_cache_size: 5000,
         ..Default::default()
     }; // 使用高性能配置
     let mut writer = PcapWriter::new_with_config(
@@ -173,12 +169,8 @@ fn test_large_dataset_memory_usage() {
     let config = WriterConfig {
         max_packets_per_file: 100,
         auto_flush: true,
-        common: pcapfile_io::CommonConfig {
-            buffer_size: 2048, // 2KB
-            index_cache_size: 100,
-            enable_index_cache: false,
-            ..Default::default()
-        },
+        buffer_size: 2048, // 2KB
+        index_cache_size: 100,
         ..Default::default()
     };
     let mut writer = PcapWriter::new_with_config(

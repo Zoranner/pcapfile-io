@@ -5,7 +5,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use crate::business::config::CommonConfig;
+use crate::business::config::ReaderConfig;
 use crate::business::index::types::{
     PacketIndexEntry, PcapFileIndex, PidxIndex,
 };
@@ -355,7 +355,7 @@ impl IndexManager {
 
         // 打开PCAP文件并读取所有数据包
         let mut reader =
-            PcapFileReader::new(CommonConfig::default());
+            PcapFileReader::new(ReaderConfig::default());
         reader.open(path)?;
         let mut packets = Vec::new();
         let mut packet_count = 0u64;

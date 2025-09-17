@@ -10,40 +10,42 @@ pub enum PcapError {
     #[error("目录不存在: {0}")]
     DirectoryNotFound(String),
 
-    #[error("权限不足: {0}")]
-    InsufficientPermissions(String),
-
-    #[error("磁盘空间不足: {0}")]
-    DiskSpaceFull(String),
-
     #[error("无效的文件格式: {0}")]
     InvalidFormat(String),
 
     #[error("文件头损坏: {0}")]
     CorruptedHeader(String),
 
-    #[error("数据包损坏: {0}")]
-    CorruptedData(String),
+    #[error("数据包损坏: {message}，位置 {position}")]
+    CorruptedData { message: String, position: u64 },
 
     #[error(
-        "校验和不匹配: 期望 {expected}, 实际 {actual}"
+        "校验和不匹配: 期望 {expected}, 实际 {actual}，位置 {position}"
     )]
-    ChecksumMismatch { expected: String, actual: String },
+    ChecksumMismatch {
+        expected: String,
+        actual: String,
+        position: u64,
+    },
 
-    #[error("数据包大小无效: {0}")]
-    InvalidPacketSize(String),
+    #[error("数据包大小无效: {message}，位置 {position}")]
+    InvalidPacketSize { message: String, position: u64 },
+
+    #[error("数据包长度超出文件剩余空间: 期望 {expected} 字节，剩余 {remaining} 字节，位置 {position}")]
+    PacketSizeExceedsRemainingBytes {
+        expected: u32,
+        remaining: u64,
+        position: u64,
+    },
+
+    #[error("时间戳解析错误: {message}，位置 {position}")]
+    TimestampParseError { message: String, position: u64 },
 
     #[error("参数无效: {0}")]
     InvalidArgument(String),
 
     #[error("操作状态无效: {0}")]
     InvalidState(String),
-
-    #[error("缓冲区溢出: {0}")]
-    BufferOverflow(String),
-
-    #[error("内存不足: {0}")]
-    OutOfMemory(String),
 
     #[error("IO错误: {0}")]
     Io(#[from] std::io::Error),
@@ -65,38 +67,32 @@ impl PcapError {
             PcapError::DirectoryNotFound(_) => {
                 PcapErrorCode::DirectoryNotFound
             }
-            PcapError::InsufficientPermissions(_) => {
-                PcapErrorCode::InsufficientPermissions
-            }
-            PcapError::DiskSpaceFull(_) => {
-                PcapErrorCode::DiskSpaceFull
-            }
             PcapError::InvalidFormat(_) => {
                 PcapErrorCode::InvalidFormat
             }
             PcapError::CorruptedHeader(_) => {
                 PcapErrorCode::CorruptedHeader
             }
-            PcapError::CorruptedData(_) => {
+            PcapError::CorruptedData { .. } => {
                 PcapErrorCode::CorruptedData
             }
             PcapError::ChecksumMismatch { .. } => {
                 PcapErrorCode::ChecksumMismatch
             }
-            PcapError::InvalidPacketSize(_) => {
+            PcapError::InvalidPacketSize { .. } => {
                 PcapErrorCode::InvalidPacketSize
+            }
+            PcapError::PacketSizeExceedsRemainingBytes { .. } => {
+                PcapErrorCode::CorruptedData
+            }
+            PcapError::TimestampParseError { .. } => {
+                PcapErrorCode::CorruptedData
             }
             PcapError::InvalidArgument(_) => {
                 PcapErrorCode::InvalidArgument
             }
             PcapError::InvalidState(_) => {
                 PcapErrorCode::InvalidState
-            }
-            PcapError::BufferOverflow(_) => {
-                PcapErrorCode::BufferOverflow
-            }
-            PcapError::OutOfMemory(_) => {
-                PcapErrorCode::OutOfMemory
             }
             PcapError::Io(_) => PcapErrorCode::Unknown,
             PcapError::Serialization(_) => {

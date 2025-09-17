@@ -25,9 +25,6 @@ pub mod constants {
     /// 默认文件命名格式
     pub const DEFAULT_FILE_NAME_FORMAT: &str =
         "yyMMdd_HHmmss_fffffff";
-
-    /// 数据包最大大小(字节)
-    pub const MAX_PACKET_SIZE: usize = 30 * 1024 * 1024; // 30MB
 }
 
 /// 错误代码枚举
@@ -39,10 +36,6 @@ pub enum PcapErrorCode {
     FileNotFound = 1001,
     /// 目录不存在
     DirectoryNotFound = 1002,
-    /// 权限不足
-    InsufficientPermissions = 1003,
-    /// 磁盘空间不足
-    DiskSpaceFull = 1004,
     /// 无效的文件格式
     InvalidFormat = 2001,
     /// 文件头损坏
@@ -57,10 +50,6 @@ pub enum PcapErrorCode {
     InvalidArgument = 3002,
     /// 操作状态无效
     InvalidState = 3003,
-    /// 缓冲区溢出
-    BufferOverflow = 4001,
-    /// 内存不足
-    OutOfMemory = 4002,
 }
 
 impl std::fmt::Display for PcapErrorCode {
@@ -75,12 +64,6 @@ impl std::fmt::Display for PcapErrorCode {
             }
             PcapErrorCode::DirectoryNotFound => {
                 write!(f, "目录不存在")
-            }
-            PcapErrorCode::InsufficientPermissions => {
-                write!(f, "权限不足")
-            }
-            PcapErrorCode::DiskSpaceFull => {
-                write!(f, "磁盘空间不足")
             }
             PcapErrorCode::InvalidFormat => {
                 write!(f, "无效的文件格式")
@@ -102,12 +85,6 @@ impl std::fmt::Display for PcapErrorCode {
             }
             PcapErrorCode::InvalidState => {
                 write!(f, "操作状态无效")
-            }
-            PcapErrorCode::BufferOverflow => {
-                write!(f, "缓冲区溢出")
-            }
-            PcapErrorCode::OutOfMemory => {
-                write!(f, "内存不足")
             }
         }
     }

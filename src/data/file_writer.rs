@@ -3,7 +3,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use crate::business::config::CommonConfig;
+use crate::business::config::WriterConfig;
 use crate::data::models::{DataPacket, PcapFileHeader};
 
 /// PCAP文件写入器
@@ -13,23 +13,17 @@ pub struct PcapFileWriter {
     file_path: Option<PathBuf>,
     packet_count: u64,
     total_size: u64,
-
-    auto_flush: bool,
-    configuration: CommonConfig,
+    configuration: WriterConfig,
 }
 
 impl PcapFileWriter {
-    pub(crate) fn new(
-        configuration: CommonConfig,
-        auto_flush: bool,
-    ) -> Self {
+    pub(crate) fn new(configuration: WriterConfig) -> Self {
         Self {
             file: None,
             writer: None,
             file_path: None,
             packet_count: 0,
             total_size: 0,
-            auto_flush,
             configuration,
         }
     }
@@ -70,7 +64,7 @@ impl PcapFileWriter {
             .write_all(&header.to_bytes())
             .map_err(|e| format!("写入文件头失败: {e}"))?;
 
-        if self.auto_flush {
+        if self.configuration.auto_flush {
             writer.flush().map_err(|e| {
                 format!("刷新缓冲区失败: {e}")
             })?;
@@ -110,7 +104,7 @@ impl PcapFileWriter {
         self.packet_count += 1;
         self.total_size += packet_bytes.len() as u64;
 
-        if self.auto_flush {
+        if self.configuration.auto_flush {
             writer.flush().map_err(|e| {
                 format!("刷新缓冲区失败: {e}")
             })?;

@@ -36,8 +36,8 @@ pub mod foundation;
 
 // 重新导出核心类型和函数
 pub use business::{
-    CommonConfig, PacketIndexEntry, PcapFileIndex,
-    PidxIndex, ReaderConfig, WriterConfig,
+    PacketIndexEntry, PcapFileIndex, PidxIndex,
+    ReaderConfig, WriterConfig,
 };
 pub use data::{
     DataPacket, DataPacketHeader, DatasetInfo, FileInfo,

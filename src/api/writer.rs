@@ -43,8 +43,6 @@ pub struct PcapWriter {
     created_files: Vec<PathBuf>,
     /// 文件信息缓存
     file_info_cache: FileInfoCache,
-    /// 缓存统计信息
-    cache_stats: CacheStats,
     /// 总数据包计数
     total_packet_count: u64,
     /// 当前文件数据包计数
@@ -111,6 +109,9 @@ impl PcapWriter {
         let index_manager =
             IndexManager::new(base_path, dataset_name)?;
 
+        // 获取缓存大小（在移动 configuration 之前）
+        let cache_size = configuration.index_cache_size;
+
         info!("PcapWriter已创建 - 数据集: {dataset_name}");
 
         Ok(Self {
@@ -122,8 +123,7 @@ impl PcapWriter {
             current_file_index: 0,
             current_file_size: 0,
             created_files: Vec::new(),
-            file_info_cache: FileInfoCache::new(1000),
-            cache_stats: CacheStats::new(),
+            file_info_cache: FileInfoCache::new(cache_size),
             total_packet_count: 0,
             current_file_packet_count: 0,
             is_initialized: false,
@@ -162,10 +162,8 @@ impl PcapWriter {
         }
         self.current_writer = None;
 
-        // 如果启用索引缓存，生成索引
-        if self.configuration.common.enable_index_cache {
-            self.index_manager.regenerate_index()?;
-        }
+        // 生成索引
+        self.index_manager.regenerate_index()?;
 
         self.is_finalized = true;
         info!(
@@ -191,10 +189,7 @@ impl PcapWriter {
             end_timestamp: None,   // 需要从实际数据中计算
             created_time: Utc::now().to_rfc3339(),
             modified_time: Utc::now().to_rfc3339(),
-            has_index: self
-                .configuration
-                .common
-                .enable_index_cache,
+            has_index: true,
         }
     }
 
@@ -331,14 +326,13 @@ impl PcapWriter {
     }
 
     /// 获取缓存统计信息
-    pub fn get_cache_stats(&self) -> &CacheStats {
-        &self.cache_stats
+    pub fn get_cache_stats(&self) -> CacheStats {
+        self.file_info_cache.get_cache_stats()
     }
 
     /// 清理缓存
     pub fn clear_cache(&mut self) -> PcapResult<()> {
         let _ = self.file_info_cache.clear();
-        self.cache_stats = CacheStats::new();
         debug!("缓存已清理");
         Ok(())
     }
@@ -356,10 +350,8 @@ impl PcapWriter {
         let file_path = self.dataset_path.join(&filename);
 
         // 创建新的写入器
-        let mut writer = PcapFileWriter::new(
-            self.configuration.common.clone(),
-            self.configuration.auto_flush,
-        );
+        let mut writer =
+            PcapFileWriter::new(self.configuration.clone());
         writer
             .create(&self.dataset_path, &filename)
             .map_err(PcapError::InvalidFormat)?;

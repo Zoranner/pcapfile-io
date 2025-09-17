@@ -5,19 +5,12 @@
 pub mod cache;
 pub mod config;
 pub mod index;
-pub mod processor;
 
 // 重新导出核心配置和索引类型
 pub use cache::{CacheStats, FileInfoCache};
-pub use config::{
-    CommonConfig, ReaderConfig, WriterConfig,
-};
+pub use config::{ReaderConfig, WriterConfig};
 pub use index::{
     PacketIndexEntry, PcapFileIndex, PidxIndex,
-};
-pub use processor::{
-    PacketProcessor, ProcessedPacket, ProcessorStatistics,
-    ValidationResult,
 };
 
 // IndexManager作为内部实现细节，不对外暴露

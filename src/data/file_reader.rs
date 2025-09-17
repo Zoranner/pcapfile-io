@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use crate::business::config::CommonConfig;
+use crate::business::config::ReaderConfig;
 use crate::data::models::{
     DataPacket, DataPacketHeader, PcapFileHeader,
     ValidatedPacket,
@@ -24,11 +24,13 @@ pub struct PcapFileReader {
     file_size: u64,
     header: Option<PcapFileHeader>,
     header_position: u64,
-    configuration: CommonConfig,
+    configuration: ReaderConfig,
+    /// 当前读取位置（字节偏移）
+    current_position: u64,
 }
 
 impl PcapFileReader {
-    pub(crate) fn new(configuration: CommonConfig) -> Self {
+    pub(crate) fn new(configuration: ReaderConfig) -> Self {
         Self {
             file: None,
             reader: None,
@@ -38,6 +40,7 @@ impl PcapFileReader {
             header: None,
             header_position: 0,
             configuration,
+            current_position: 0,
         }
     }
 
@@ -87,6 +90,8 @@ impl PcapFileReader {
         self.header = Some(header);
         self.packet_count = 0;
         self.header_position = 0;
+        self.current_position =
+            PcapFileHeader::HEADER_SIZE as u64; // 文件头后的位置
 
         info!("成功打开PCAP文件: {path:?}");
         Ok(())
@@ -105,10 +110,15 @@ impl PcapFileReader {
 
         let header =
             PcapFileHeader::from_bytes(&header_bytes)
-                .map_err(PcapError::InvalidFormat)?;
+                .map_err(|e| {
+                    PcapError::CorruptedHeader(format!(
+                        "文件头解析失败: {}",
+                        e
+                    ))
+                })?;
 
         if !header.is_valid() {
-            return Err(PcapError::InvalidFormat(
+            return Err(PcapError::CorruptedHeader(
                 "无效的PCAP文件头".to_string(),
             ));
         }
@@ -127,6 +137,15 @@ impl PcapFileReader {
                 )
             })?;
 
+        // 检查是否还有足够空间读取包头
+        let remaining_bytes =
+            self.file_size - self.current_position;
+        if remaining_bytes
+            < DataPacketHeader::HEADER_SIZE as u64
+        {
+            return Ok(None); // 到达文件末尾
+        }
+
         // 读取数据包头部
         let mut header_bytes =
             [0u8; DataPacketHeader::HEADER_SIZE];
@@ -143,7 +162,29 @@ impl PcapFileReader {
 
         let header =
             DataPacketHeader::from_bytes(&header_bytes)
-                .map_err(PcapError::InvalidFormat)?;
+                .map_err(|e| {
+                    PcapError::TimestampParseError {
+                        message: format!(
+                            "包头解析失败: {}",
+                            e
+                        ),
+                        position: self.current_position,
+                    }
+                })?;
+
+        // 检查数据包长度是否超出文件剩余空间
+        let remaining_after_header = self.file_size
+            - self.current_position
+            - DataPacketHeader::HEADER_SIZE as u64;
+        if header.packet_length as u64
+            > remaining_after_header
+        {
+            return Err(PcapError::PacketSizeExceedsRemainingBytes {
+                expected: header.packet_length,
+                remaining: remaining_after_header,
+                position: self.current_position + DataPacketHeader::HEADER_SIZE as u64,
+            });
+        }
 
         // 读取数据包内容
         let mut data =
@@ -168,16 +209,23 @@ impl PcapFileReader {
         }
 
         self.packet_count += 1;
+        self.current_position +=
+            DataPacketHeader::HEADER_SIZE as u64
+                + header.packet_length as u64;
 
         let packet = DataPacket::new(header, data)
-            .map_err(PcapError::InvalidFormat)?;
+            .map_err(|e| PcapError::CorruptedData {
+                message: format!("数据包创建失败: {}", e),
+                position: self.current_position,
+            })?;
 
         let result = ValidatedPacket::new(packet, is_valid);
 
         debug!(
-            "已读取数据包，当前计数: {}, 校验状态: {}",
+            "已读取数据包，当前计数: {}, 校验状态: {}, 位置: {}",
             self.packet_count,
-            if is_valid { "有效" } else { "无效" }
+            if is_valid { "有效" } else { "无效" },
+            self.current_position
         );
         Ok(Some(result))
     }
@@ -190,6 +238,7 @@ impl PcapFileReader {
         self.packet_count = 0;
         self.file_size = 0;
         self.header = None;
+        self.current_position = 0;
         debug!("文件已关闭");
     }
 }

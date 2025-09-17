@@ -12,7 +12,7 @@ use crate::data::models::FileInfo;
 #[derive(Debug, Clone)]
 pub struct CacheStats {
     /// 缓存条目总数
-    pub total_entries: usize,
+    pub cache_entries: usize,
     /// 缓存命中次数
     pub hit_count: u64,
     /// 缓存未命中次数
@@ -25,7 +25,7 @@ impl CacheStats {
     /// 创建新的缓存统计信息
     pub fn new() -> Self {
         Self {
-            total_entries: 0,
+            cache_entries: 0,
             hit_count: 0,
             miss_count: 0,
             hit_rate: 0.0,
@@ -87,19 +87,19 @@ impl FileInfoCacheItem {
 /// 缓存统计信息
 #[derive(Debug, Clone)]
 pub struct CacheStatistics {
-    pub total_entries: usize,
-    pub max_entries: usize,
+    pub cache_entries: usize,
+    pub max_cache_size: usize,
     pub expired_entries: usize,
     pub last_cleanup_time: DateTime<Utc>,
 }
 
 impl CacheStatistics {
     pub fn usage_percentage(&self) -> f64 {
-        if self.max_entries == 0 {
+        if self.max_cache_size == 0 {
             0.0
         } else {
-            (self.total_entries as f64
-                / self.max_entries as f64)
+            (self.cache_entries as f64
+                / self.max_cache_size as f64)
                 * 100.0
         }
     }
@@ -108,7 +108,7 @@ impl CacheStatistics {
 /// 文件信息缓存
 pub struct FileInfoCache {
     cache: Arc<Mutex<HashMap<String, FileInfoCacheItem>>>,
-    max_entries: usize,
+    max_cache_size: usize,
     cache_expiration: Duration,
     cleanup_interval: Duration,
     last_cleanup: Arc<Mutex<DateTime<Utc>>>,
@@ -117,10 +117,10 @@ pub struct FileInfoCache {
 }
 
 impl FileInfoCache {
-    pub fn new(max_entries: usize) -> Self {
+    pub fn new(max_cache_size: usize) -> Self {
         Self {
             cache: Arc::new(Mutex::new(HashMap::new())),
-            max_entries,
+            max_cache_size,
             cache_expiration: Duration::minutes(30), // 30分钟
             cleanup_interval: Duration::minutes(10), // 10分钟
             last_cleanup: Arc::new(Mutex::new(Utc::now())),
@@ -197,12 +197,12 @@ impl FileInfoCache {
             cache.insert(path_str, item);
 
             // 检查缓存大小限制
-            if cache.len() > self.max_entries {
+            if cache.len() > self.max_cache_size {
                 let _ = self
                     .cleanup_expired_entries(&mut cache);
 
                 // 如果清理后仍然超过限制，移除最旧的条目
-                if cache.len() > self.max_entries {
+                if cache.len() > self.max_cache_size {
                     let oldest_key = cache
                         .iter()
                         .min_by_key(|(_, item)| {
@@ -220,7 +220,7 @@ impl FileInfoCache {
 
     /// 获取缓存统计信息
     pub fn get_cache_stats(&self) -> CacheStats {
-        let total_entries = self
+        let cache_entries = self
             .cache
             .lock()
             .map(|cache| cache.len())
@@ -238,7 +238,7 @@ impl FileInfoCache {
             .unwrap_or(0);
 
         let mut stats = CacheStats {
-            total_entries,
+            cache_entries,
             hit_count,
             miss_count,
             hit_rate: 0.0,
@@ -329,8 +329,8 @@ impl FileInfoCache {
             .map_err(|_| "清理时间锁定失败")?;
 
         Ok(CacheStatistics {
-            total_entries: cache.len(),
-            max_entries: self.max_entries,
+            cache_entries: cache.len(),
+            max_cache_size: self.max_cache_size,
             expired_entries,
             last_cleanup_time: last_cleanup,
         })

@@ -43,8 +43,6 @@ pub struct PcapReader {
     current_position: u64,
     /// 文件信息缓存
     file_info_cache: FileInfoCache,
-    /// 缓存统计信息
-    cache_stats: CacheStats,
     /// 总大小缓存
     total_size_cache: RefCell<Option<u64>>,
     /// 是否已初始化
@@ -105,6 +103,9 @@ impl PcapReader {
         let index_manager =
             IndexManager::new(base_path, dataset_name)?;
 
+        // 获取缓存大小（在移动 configuration 之前）
+        let cache_size = configuration.index_cache_size;
+
         info!("PcapReader已创建 - 数据集: {dataset_name}");
 
         Ok(Self {
@@ -115,8 +116,7 @@ impl PcapReader {
             current_reader: None,
             current_file_index: 0,
             current_position: 0,
-            file_info_cache: FileInfoCache::new(1000),
-            cache_stats: CacheStats::new(),
+            file_info_cache: FileInfoCache::new(cache_size),
             total_size_cache: RefCell::new(None),
             is_initialized: false,
         })
@@ -406,15 +406,13 @@ impl PcapReader {
     }
 
     /// 获取缓存统计信息
-    pub fn get_cache_stats(&self) -> &CacheStats {
-        &self.cache_stats
+    pub fn get_cache_stats(&self) -> CacheStats {
+        self.file_info_cache.get_cache_stats()
     }
 
     /// 清理缓存
     pub fn clear_cache(&mut self) -> PcapResult<()> {
         let _ = self.file_info_cache.clear();
-        self.cache_stats = CacheStats::new();
-        *self.total_size_cache.borrow_mut() = None;
         debug!("缓存已清理");
         Ok(())
     }
@@ -484,7 +482,7 @@ impl PcapReader {
 
         let mut reader =
             crate::data::file_reader::PcapFileReader::new(
-                self.configuration.common.clone(),
+                self.configuration.clone(),
             );
         reader.open(&file_path)?;
 
