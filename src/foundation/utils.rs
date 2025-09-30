@@ -126,7 +126,10 @@ impl DateTimeExtensions for DateTime<Utc> {
         milliseconds: i64,
     ) -> DateTime<Utc> {
         DateTime::from_timestamp_millis(milliseconds)
-            .unwrap_or_default()
+            .unwrap_or_else(|| {
+                // 如果时间戳无效，返回当前时间
+                Utc::now()
+            })
     }
 
     fn to_unix_time_seconds(&self) -> u32 {
@@ -145,7 +148,10 @@ impl DateTimeExtensions for DateTime<Utc> {
             seconds as i64,
             nanoseconds,
         )
-        .unwrap_or_default()
+        .unwrap_or_else(|| {
+            // 如果时间戳无效，返回当前时间
+            Utc::now()
+        })
     }
 
     fn to_filename_string(&self) -> String {
@@ -165,20 +171,11 @@ impl DateTimeExtensions for DateTime<Utc> {
 
 /// 计算CRC32校验和
 pub fn calculate_crc32(data: &[u8]) -> u32 {
-    let mut crc = 0xFFFFFFFFu32;
+    use crc32fast::Hasher;
 
-    for &byte in data {
-        crc ^= byte as u32;
-        for _ in 0..8 {
-            if crc & 1 != 0 {
-                crc = (crc >> 1) ^ 0xEDB88320;
-            } else {
-                crc >>= 1;
-            }
-        }
-    }
-
-    !crc
+    let mut hasher = Hasher::new();
+    hasher.update(data);
+    hasher.finalize()
 }
 
 /// 二进制转换工具

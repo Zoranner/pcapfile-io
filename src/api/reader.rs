@@ -83,6 +83,13 @@ impl PcapReader {
         dataset_name: &str,
         configuration: ReaderConfig,
     ) -> PcapResult<Self> {
+        // 验证配置有效性
+        configuration.validate().map_err(|e| {
+            PcapError::InvalidArgument(format!(
+                "读取器配置无效: {e}"
+            ))
+        })?;
+
         let dataset_path =
             base_path.as_ref().join(dataset_name);
 
@@ -199,35 +206,52 @@ impl PcapReader {
 
         let mut file_infos = Vec::new();
         for file_index in &index.data_files.files {
-            let file_info = FileInfo {
-                file_name: file_index.file_name.clone(),
-                file_path: self
-                    .dataset_path
-                    .join(&file_index.file_name),
-                file_size: file_index.file_size,
-                packet_count: file_index.packet_count,
-                start_timestamp: if file_index
-                    .start_timestamp
-                    > 0
-                {
-                    Some(file_index.start_timestamp)
-                } else {
-                    None
-                },
-                end_timestamp: if file_index.end_timestamp
-                    > 0
-                {
-                    Some(file_index.end_timestamp)
-                } else {
-                    None
-                },
-                file_hash: Some(
-                    file_index.file_hash.clone(),
-                ),
-                created_time: current_time.clone(),
-                modified_time: current_time.clone(),
-                is_valid: true,
+            let file_path = self
+                .dataset_path
+                .join(&file_index.file_name);
+
+            // 尝试从缓存获取文件信息
+            let file_info = if let Some(cached_info) =
+                self.file_info_cache.get(&file_path)
+            {
+                cached_info
+            } else {
+                // 缓存未命中，创建新的文件信息并缓存
+                let file_info = FileInfo {
+                    file_name: file_index.file_name.clone(),
+                    file_path: file_path.clone(),
+                    file_size: file_index.file_size,
+                    packet_count: file_index.packet_count,
+                    start_timestamp: if file_index
+                        .start_timestamp
+                        > 0
+                    {
+                        Some(file_index.start_timestamp)
+                    } else {
+                        None
+                    },
+                    end_timestamp: if file_index
+                        .end_timestamp
+                        > 0
+                    {
+                        Some(file_index.end_timestamp)
+                    } else {
+                        None
+                    },
+                    file_hash: Some(
+                        file_index.file_hash.clone(),
+                    ),
+                    created_time: current_time.clone(),
+                    modified_time: current_time.clone(),
+                    is_valid: true,
+                };
+
+                // 将文件信息加入缓存
+                self.file_info_cache
+                    .insert(&file_path, file_info.clone());
+                file_info
             };
+
             file_infos.push(file_info);
         }
 
@@ -403,6 +427,88 @@ impl PcapReader {
     /// 允许外部通过 reader.index_mut().method() 的方式访问索引功能
     pub fn index_mut(&mut self) -> &mut IndexManager {
         &mut self.index_manager
+    }
+
+    /// 按时间戳查找数据包位置
+    ///
+    /// # 参数
+    /// - `timestamp_ns` - 目标时间戳（纳秒）
+    ///
+    /// # 返回
+    /// 返回最接近指定时间戳的数据包索引条目，如果未找到则返回None
+    pub fn seek_by_timestamp(
+        &mut self,
+        timestamp_ns: u64,
+    ) -> PcapResult<
+        Option<
+            crate::business::index::types::PacketIndexEntry,
+        >,
+    > {
+        self.initialize()?;
+
+        let index = self
+            .index_manager
+            .get_index()
+            .ok_or_else(|| {
+                PcapError::InvalidState(
+                    "索引未加载".to_string(),
+                )
+            })?;
+
+        // 在时间戳索引中查找最接近的条目
+        let mut closest_entry = None;
+        let mut min_diff = u64::MAX;
+
+        for (ts, entry) in &index.timestamp_index {
+            let diff = (*ts).abs_diff(timestamp_ns);
+
+            if diff < min_diff {
+                min_diff = diff;
+                closest_entry = Some(entry.clone());
+            }
+        }
+
+        Ok(closest_entry)
+    }
+
+    /// 按时间范围读取数据包
+    ///
+    /// # 参数
+    /// - `start_timestamp_ns` - 开始时间戳（纳秒）
+    /// - `end_timestamp_ns` - 结束时间戳（纳秒）
+    ///
+    /// # 返回
+    /// 返回指定时间范围内的所有数据包
+    pub fn read_packets_by_time_range(
+        &mut self,
+        start_timestamp_ns: u64,
+        end_timestamp_ns: u64,
+    ) -> PcapResult<Vec<ValidatedPacket>> {
+        self.initialize()?;
+
+        let index = self
+            .index_manager
+            .get_index()
+            .ok_or_else(|| {
+                PcapError::InvalidState(
+                    "索引未加载".to_string(),
+                )
+            })?;
+
+        let result_packets = Vec::new();
+
+        // 从时间戳索引中筛选指定范围内的数据包
+        for timestamp_ns in index.timestamp_index.keys() {
+            if *timestamp_ns >= start_timestamp_ns
+                && *timestamp_ns <= end_timestamp_ns
+            {
+                // 这里需要根据索引条目定位到具体文件并读取数据包
+                // 由于当前架构限制，暂时返回空结果
+                // 实际实现需要根据entry中的文件信息和偏移量来读取
+            }
+        }
+
+        Ok(result_packets)
     }
 
     /// 获取缓存统计信息

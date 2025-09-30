@@ -273,7 +273,10 @@ impl DataPacketHeader {
             self.timestamp_seconds as i64,
             self.timestamp_nanoseconds,
         )
-        .unwrap_or_else(Utc::now)
+        .unwrap_or_else(|| {
+            // 如果时间戳无效，返回当前时间
+            Utc::now()
+        })
     }
 }
 

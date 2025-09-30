@@ -58,6 +58,8 @@ pub struct WriterConfig {
     pub index_cache_size: usize,
     /// 每个PCAP文件最大数据包数量
     pub max_packets_per_file: usize,
+    /// 每个PCAP文件最大大小（字节），0表示不限制
+    pub max_file_size_bytes: u64,
     /// 文件命名格式
     pub file_name_format: String,
     /// 是否启用自动刷新
@@ -71,6 +73,7 @@ impl Default for WriterConfig {
             index_cache_size: 1000,
             max_packets_per_file:
                 constants::DEFAULT_MAX_PACKETS_PER_FILE,
+            max_file_size_bytes: 0, // 默认不限制文件大小
             file_name_format:
                 constants::DEFAULT_FILE_NAME_FORMAT
                     .to_string(),
@@ -102,6 +105,14 @@ impl WriterConfig {
         if self.max_packets_per_file == 0 {
             return Err("每个文件最大数据包数量必须大于0"
                 .to_string());
+        }
+
+        if self.max_file_size_bytes > 0
+            && self.max_file_size_bytes < 1024
+        {
+            return Err(
+                "文件大小限制不能小于1024字节".to_string()
+            );
         }
 
         if self.file_name_format.is_empty() {

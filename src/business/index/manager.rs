@@ -436,11 +436,12 @@ impl IndexManager {
     fn find_pidx_file(
         &self,
     ) -> PcapResult<Option<PathBuf>> {
-        let preferred = self.dataset_path.join(".pidx");
-        if preferred.exists() && preferred.is_file() {
-            return Ok(Some(preferred));
+        let pidx_path = self.dataset_path.join(".pidx");
+        if pidx_path.exists() && pidx_path.is_file() {
+            Ok(Some(pidx_path))
+        } else {
+            Ok(None)
         }
-        Ok(None)
     }
 
     /// 验证索引是否有效
@@ -609,7 +610,6 @@ impl IndexManager {
 
     /// 获取PIDX文件路径
     fn get_pidx_file_path(&self) -> PathBuf {
-        // 统一命名为隐藏索引文件 .pidx，避免依赖数据集名称
         self.dataset_path.join(".pidx")
     }
 }

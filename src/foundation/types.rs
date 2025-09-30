@@ -7,9 +7,6 @@ pub mod constants {
     /// PCAP文件标识，固定值 0xD4C3B2A1
     pub const PCAP_MAGIC_NUMBER: u32 = 0xD4C3B2A1;
 
-    /// PROJ文件标识 ("PROJ")
-    pub const PROJ_MAGIC_NUMBER: u32 = 0xA1B2C3D4;
-
     /// 主版本号，固定值 0x0002
     pub const MAJOR_VERSION: u16 = 2;
 
@@ -46,10 +43,14 @@ pub enum PcapErrorCode {
     ChecksumMismatch = 2004,
     /// 数据包大小无效
     InvalidPacketSize = 3001,
+    /// 数据包长度超出文件剩余空间
+    PacketSizeExceedsRemainingBytes = 3002,
+    /// 时间戳解析错误
+    TimestampParseError = 3003,
     /// 参数无效
-    InvalidArgument = 3002,
+    InvalidArgument = 3004,
     /// 操作状态无效
-    InvalidState = 3003,
+    InvalidState = 3005,
 }
 
 impl std::fmt::Display for PcapErrorCode {
@@ -79,6 +80,12 @@ impl std::fmt::Display for PcapErrorCode {
             }
             PcapErrorCode::InvalidPacketSize => {
                 write!(f, "数据包大小无效")
+            }
+            PcapErrorCode::PacketSizeExceedsRemainingBytes => {
+                write!(f, "数据包长度超出文件剩余空间")
+            }
+            PcapErrorCode::TimestampParseError => {
+                write!(f, "时间戳解析错误")
             }
             PcapErrorCode::InvalidArgument => {
                 write!(f, "参数无效")

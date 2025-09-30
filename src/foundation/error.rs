@@ -83,10 +83,10 @@ impl PcapError {
                 PcapErrorCode::InvalidPacketSize
             }
             PcapError::PacketSizeExceedsRemainingBytes { .. } => {
-                PcapErrorCode::CorruptedData
+                PcapErrorCode::PacketSizeExceedsRemainingBytes
             }
             PcapError::TimestampParseError { .. } => {
-                PcapErrorCode::CorruptedData
+                PcapErrorCode::TimestampParseError
             }
             PcapError::InvalidArgument(_) => {
                 PcapErrorCode::InvalidArgument

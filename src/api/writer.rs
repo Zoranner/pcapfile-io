@@ -87,6 +87,13 @@ impl PcapWriter {
         dataset_name: &str,
         configuration: WriterConfig,
     ) -> PcapResult<Self> {
+        // 验证配置有效性
+        configuration.validate().map_err(|e| {
+            PcapError::InvalidArgument(format!(
+                "写入器配置无效: {e}"
+            ))
+        })?;
+
         let dataset_path =
             base_path.as_ref().join(dataset_name);
 
@@ -179,6 +186,11 @@ impl PcapWriter {
     pub fn get_dataset_info(&self) -> DatasetInfo {
         use chrono::Utc;
 
+        // 检查索引文件是否存在
+        let pidx_path = self.dataset_path.join(".pidx");
+        let has_index =
+            pidx_path.exists() && pidx_path.is_file();
+
         DatasetInfo {
             name: self.dataset_name.clone(),
             path: self.dataset_path.clone(),
@@ -189,7 +201,7 @@ impl PcapWriter {
             end_timestamp: None,   // 需要从实际数据中计算
             created_time: Utc::now().to_rfc3339(),
             modified_time: Utc::now().to_rfc3339(),
-            has_index: true,
+            has_index,
         }
     }
 
@@ -200,20 +212,71 @@ impl PcapWriter {
         use chrono::Utc;
         let current_time = Utc::now().to_rfc3339();
 
+        // 尝试从索引获取详细信息
+        let index_info = self.index_manager.get_index();
+
         for file_path in &self.created_files {
             if let Ok(metadata) = fs::metadata(file_path) {
+                let file_name = file_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                // 从索引中查找对应的文件信息
+                let (
+                    packet_count,
+                    start_timestamp,
+                    end_timestamp,
+                    file_hash,
+                ) = if let Some(index) = index_info {
+                    if let Some(file_index) =
+                        index.data_files.files.iter().find(
+                            |f| f.file_name == file_name,
+                        )
+                    {
+                        (
+                            file_index.packet_count,
+                            if file_index.start_timestamp
+                                > 0
+                            {
+                                Some(
+                                    file_index
+                                        .start_timestamp,
+                                )
+                            } else {
+                                None
+                            },
+                            if file_index.end_timestamp > 0
+                            {
+                                Some(
+                                    file_index
+                                        .end_timestamp,
+                                )
+                            } else {
+                                None
+                            },
+                            Some(
+                                file_index
+                                    .file_hash
+                                    .clone(),
+                            ),
+                        )
+                    } else {
+                        (0, None, None, None)
+                    }
+                } else {
+                    (0, None, None, None)
+                };
+
                 let file_info = FileInfo {
-                    file_name: file_path
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .unwrap_or("")
-                        .to_string(),
+                    file_name,
                     file_path: file_path.clone(),
                     file_size: metadata.len(),
-                    packet_count: 0, // 需要从索引中获取
-                    start_timestamp: None,
-                    end_timestamp: None,
-                    file_hash: None,
+                    packet_count,
+                    start_timestamp,
+                    end_timestamp,
+                    file_hash,
                     created_time: current_time.clone(),
                     modified_time: current_time.clone(),
                     is_valid: true,
@@ -343,9 +406,24 @@ impl PcapWriter {
 
     /// 创建新的PCAP文件
     fn create_new_file(&mut self) -> PcapResult<()> {
-        // 生成符合标准的文件名: data_yyMMdd_HHmmss_nnnnnnnnn.pcap
+        // 使用配置的文件命名格式生成文件名
         let time_str = Utc::now().to_filename_string();
-        let filename = format!("data_{time_str}.pcap");
+        let filename = if self
+            .configuration
+            .file_name_format
+            .is_empty()
+        {
+            // 默认格式：data_yyMMdd_HHmmss_nnnnnnnnn.pcap
+            format!("data_{time_str}.pcap")
+        } else {
+            // 使用用户配置的格式
+            format!(
+                "{}.pcap",
+                self.configuration
+                    .file_name_format
+                    .replace("{}", &time_str)
+            )
+        };
 
         let file_path = self.dataset_path.join(&filename);
 
@@ -382,6 +460,14 @@ impl PcapWriter {
         if self.current_file_packet_count
             >= self.configuration.max_packets_per_file
                 as u64
+        {
+            return true;
+        }
+
+        // 检查文件大小限制
+        if self.configuration.max_file_size_bytes > 0
+            && self.current_file_size
+                >= self.configuration.max_file_size_bytes
         {
             return true;
         }
