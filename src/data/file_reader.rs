@@ -1,6 +1,6 @@
 use log::{debug, info};
 use std::fs::File;
-use std::io::{self, BufReader, Read};
+use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use crate::business::config::ReaderConfig;
@@ -228,6 +228,36 @@ impl PcapFileReader {
             self.current_position
         );
         Ok(Some(result))
+    }
+
+    /// 跳转到指定字节偏移位置
+    pub(crate) fn seek_to(&mut self, offset: u64) -> PcapResult<()> {
+        let reader = self.reader.as_mut().ok_or_else(|| {
+            PcapError::InvalidState("文件未打开".to_string())
+        })?;
+
+        // 跳转到指定位置
+        reader.seek(SeekFrom::Start(offset)).map_err(PcapError::Io)?;
+        
+        // 更新当前位置
+        self.current_position = offset;
+        
+        debug!("已跳转到位置: {}", offset);
+        Ok(())
+    }
+
+    /// 在指定偏移位置读取数据包
+    pub(crate) fn read_packet_at(&mut self, offset: u64) -> PcapResult<ValidatedPacket> {
+        // 先跳转到指定位置
+        self.seek_to(offset)?;
+        
+        // 然后读取数据包
+        match self.read_packet()? {
+            Some(packet) => Ok(packet),
+            None => Err(PcapError::InvalidState(
+                "在指定位置未找到数据包".to_string()
+            )),
+        }
     }
 
     /// 关闭文件

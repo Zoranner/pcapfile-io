@@ -415,6 +415,9 @@ impl PcapWriter {
         {
             // 默认格式：data_yyMMdd_HHmmss_nnnnnnnnn.pcap
             format!("data_{time_str}.pcap")
+        } else if self.configuration.file_name_format == crate::foundation::types::constants::DEFAULT_FILE_NAME_FORMAT {
+            // 如果使用默认格式，直接使用时间字符串
+            format!("{time_str}.pcap")
         } else {
             // 使用用户配置的格式
             format!(

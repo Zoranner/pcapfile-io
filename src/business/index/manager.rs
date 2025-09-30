@@ -281,11 +281,18 @@ impl IndexManager {
                             file_index.end_timestamp;
                     }
 
-                    // 构建时间戳索引
+                    // 获取当前文件在索引中的位置
+                    let file_index_position = index.data_files.files.len();
+
+                    // 构建时间戳索引（带文件引用）
                     for packet in &file_index.data_packets {
+                        let pointer = crate::business::index::types::TimestampPointer {
+                            file_index: file_index_position,
+                            entry: packet.clone(),
+                        };
                         timestamp_index.insert(
                             packet.timestamp_ns,
-                            packet.clone(),
+                            pointer,
                         );
                     }
 
@@ -312,8 +319,8 @@ impl IndexManager {
 
         // 更新统计信息
         index.update_time_range();
-        index.update_total_packets();
         index.timestamp_index = timestamp_index;
+        index.update_total_packets();
 
         // 保存索引
         self.index = Some(index);

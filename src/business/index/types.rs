@@ -14,6 +14,15 @@ pub struct PacketIndexEntry {
     pub packet_size: u32,
 }
 
+/// 时间戳指针结构（仅用于内存索引，不参与序列化）
+#[derive(Debug, Clone)]
+pub struct TimestampPointer {
+    /// 文件在 data_files.files 中的索引
+    pub file_index: usize,
+    /// 数据包索引条目
+    pub entry: PacketIndexEntry,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename = "file")]
 pub struct PcapFileIndex {
@@ -51,7 +60,7 @@ pub struct PidxIndex {
     #[serde(rename = "data_files")]
     pub data_files: DataFiles,
     #[serde(skip)]
-    pub timestamp_index: HashMap<u64, PacketIndexEntry>,
+    pub timestamp_index: HashMap<u64, TimestampPointer>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,11 +120,15 @@ impl PidxIndex {
 
     pub fn build_timestamp_index(&mut self) {
         self.timestamp_index.clear();
-        for file_index in &self.data_files.files {
+        for (file_idx, file_index) in self.data_files.files.iter().enumerate() {
             for packet in &file_index.data_packets {
+                let pointer = TimestampPointer {
+                    file_index: file_idx,
+                    entry: packet.clone(),
+                };
                 self.timestamp_index.insert(
                     packet.timestamp_ns,
-                    packet.clone(),
+                    pointer,
                 );
             }
         }
@@ -128,33 +141,22 @@ impl PidxIndex {
     pub fn find_packet_by_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Option<&PacketIndexEntry> {
-        for file_index in &self.data_files.files {
-            for packet in &file_index.data_packets {
-                if packet.timestamp_ns == timestamp_ns {
-                    return Some(packet);
-                }
-            }
-        }
-        None
+    ) -> Option<&TimestampPointer> {
+        self.timestamp_index.get(&timestamp_ns)
     }
 
     pub fn get_packets_in_range(
         &self,
         start_ns: u64,
         end_ns: u64,
-    ) -> Vec<&PacketIndexEntry> {
+    ) -> Vec<&TimestampPointer> {
         let mut packets = Vec::new();
-        for file_index in &self.data_files.files {
-            for packet in &file_index.data_packets {
-                if packet.timestamp_ns >= start_ns
-                    && packet.timestamp_ns <= end_ns
-                {
-                    packets.push(packet);
-                }
+        for (timestamp_ns, pointer) in &self.timestamp_index {
+            if *timestamp_ns >= start_ns && *timestamp_ns <= end_ns {
+                packets.push(pointer);
             }
         }
-        packets.sort_by_key(|p| p.timestamp_ns);
+        packets.sort_by_key(|p| p.entry.timestamp_ns);
         packets
     }
 }
