@@ -146,18 +146,18 @@ mod unit_tests {
     use super::*;
 
     #[test]
-    fn test_data_validation() {
-        let input = create_test_data();
-        assert!(validate_data(&input).is_ok());
+    fn test_data_packet_creation() {
+        let data = b"test data".to_vec();
+        let packet = DataPacket::from_datetime(Utc::now(), data).unwrap();
+        assert_eq!(packet.packet_length(), 9);
+        assert!(packet.is_valid());
     }
 
     #[test]
     fn test_error_handling() {
-        let invalid_input = create_invalid_data();
-        assert!(matches!(
-            validate_data(&invalid_input),
-            Err(ValidationError::InvalidFormat { .. })
-        ));
+        let invalid_data = vec![];
+        let result = DataPacket::from_datetime(Utc::now(), invalid_data);
+        assert!(result.is_err());
     }
 }
 
@@ -167,13 +167,20 @@ mod integration_tests {
     use super::*;
 
     #[test]
-    fn test_full_processing_pipeline() {
-        let processor = DataProcessor::new(test_config()).unwrap();
-        let input = load_test_dataset();
-        let result = processor.process_all(input).unwrap();
+    fn test_full_read_write_pipeline() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut writer = PcapWriter::new(temp_dir.path(), "test_dataset").unwrap();
 
-        assert_eq!(result.processed_count, input.len());
-        assert!(result.errors.is_empty());
+        let data = b"test packet".to_vec();
+        let packet = DataPacket::from_datetime(Utc::now(), data).unwrap();
+        writer.write_packet(&packet).unwrap();
+        writer.flush().unwrap();
+        drop(writer);
+
+        let mut reader = PcapReader::new(temp_dir.path(), "test_dataset").unwrap();
+        let read_packet = reader.read_packet().unwrap().unwrap();
+        assert!(read_packet.is_valid());
+        assert_eq!(read_packet.packet_length(), 11);
     }
 }
 
@@ -183,18 +190,22 @@ mod bench_tests {
     use super::*;
     use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-    fn benchmark_batch_processing(c: &mut Criterion) {
-        let data = generate_test_data(1000);
+    fn benchmark_packet_processing(c: &mut Criterion) {
+        let data = generate_test_packets(1000);
 
-        c.bench_function("batch_process_1k", |b| {
+        c.bench_function("process_packets_1k", |b| {
             b.iter(|| {
-                let processor = DataProcessor::new(default_config()).unwrap();
-                black_box(processor.process_batch(&data))
+                let temp_dir = tempfile::tempdir().unwrap();
+                let mut writer = PcapWriter::new(temp_dir.path(), "bench").unwrap();
+                for packet in &data {
+                    black_box(writer.write_packet(packet).unwrap());
+                }
+                black_box(writer.flush().unwrap());
             })
         });
     }
 
-    criterion_group!(benches, benchmark_batch_processing);
+    criterion_group!(benches, benchmark_packet_processing);
     criterion_main!(benches);
 }
 ```
@@ -208,22 +219,29 @@ pub mod test_utils {
     use super::*;
 
     /// 创建标准测试配置
-    pub fn create_test_config() -> Configuration {
-        Configuration {
+    pub fn create_test_reader_config() -> ReaderConfig {
+        ReaderConfig {
             buffer_size: 1024,
-            enable_validation: true,
-            // 测试环境的特殊配置
-            ..Configuration::default()
+            index_cache_size: 100,
         }
     }
 
-    /// 生成指定大小的测试数据
-    pub fn generate_test_data(count: usize) -> Vec<TestItem> {
+    pub fn create_test_writer_config() -> WriterConfig {
+        WriterConfig {
+            buffer_size: 1024,
+            index_cache_size: 100,
+            max_packets_per_file: 10,
+            file_name_format: "test_%Y%m%d_%H%M%S_%f".to_string(),
+            auto_flush: true,
+        }
+    }
+
+    /// 生成指定数量的测试数据包
+    pub fn generate_test_packets(count: usize) -> Vec<DataPacket> {
         (0..count)
-            .map(|i| TestItem {
-                id: i as u64,
-                data: format!("test_data_{}", i).into_bytes(),
-                timestamp: chrono::Utc::now(),
+            .map(|i| {
+                let data = format!("test_packet_{}", i).into_bytes();
+                DataPacket::from_datetime(Utc::now(), data).unwrap()
             })
             .collect()
     }
@@ -244,19 +262,26 @@ pub mod test_utils {
 ```rust
 // benches/performance.rs
 use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
-use my_crate::*;
+use pcapfile_io::*;
 
 fn benchmark_different_sizes(c: &mut Criterion) {
-    let mut group = c.benchmark_group("data_processing");
+    let mut group = c.benchmark_group("packet_processing");
 
-    // 测试不同数据大小的性能
+    // 测试不同数据包数量的性能
     for size in [100, 1000, 10000].iter() {
         group.bench_with_input(
-            BenchmarkId::new("process_data", size),
+            BenchmarkId::new("write_packets", size),
             size,
             |b, &size| {
-                let data = generate_test_data(size);
-                b.iter(|| process_data(&data))
+                let temp_dir = tempfile::tempdir().unwrap();
+                let packets = generate_test_packets(size);
+                b.iter(|| {
+                    let mut writer = PcapWriter::new(temp_dir.path(), "bench").unwrap();
+                    for packet in &packets {
+                        writer.write_packet(packet).unwrap();
+                    }
+                    writer.flush().unwrap();
+                })
             },
         );
     }
@@ -279,10 +304,16 @@ mod memory_tests {
         let initial_memory = get_memory_usage();
 
         {
-            let processor = DataProcessor::new(default_config()).unwrap();
-            let large_data = generate_large_test_data();
-            let _result = processor.process_all(large_data).unwrap();
-        } // processor 在此处析构
+            let temp_dir = tempfile::tempdir().unwrap();
+            let mut writer = PcapWriter::new(temp_dir.path(), "memory_test").unwrap();
+            let large_packets = generate_test_packets(10000);
+
+            for packet in &large_packets {
+                writer.write_packet(packet).unwrap();
+            }
+            writer.flush().unwrap();
+            drop(writer);
+        } // writer 在此处析构
 
         // 强制垃圾回收
         std::thread::sleep(Duration::from_millis(100));
@@ -342,87 +373,53 @@ impl DataProcessor {
 ### 示例代码要求
 
 ```rust
-// examples/basic_usage.rs
-//! 基本使用示例
+// examples/dataset_usage.rs
+//! 数据集使用示例
 //!
-//! 演示如何使用库的核心功能进行数据处理
+//! 演示如何使用库的核心功能进行PCAP文件读写
 
-use my_crate::*;
+use pcapfile_io::*;
+use chrono::Utc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. 创建配置
-    let config = Configuration::default()
-        .with_buffer_size(8192)
-        .with_validation(true);
+    // 1. 创建数据集写入器
+    let mut writer = PcapWriter::new("./data", "example_dataset")?;
 
-    // 2. 初始化处理器
-    let mut processor = DataProcessor::new(config)?;
+    // 2. 创建测试数据包
+    let packets = vec![
+        DataPacket::from_datetime(Utc::now(), b"packet_1".to_vec())?,
+        DataPacket::from_datetime(Utc::now(), b"packet_2".to_vec())?,
+        DataPacket::from_datetime(Utc::now(), b"packet_3".to_vec())?,
+    ];
 
-    // 3. 加载测试数据
-    let input_data = load_sample_data()?;
+    // 3. 写入数据包
+    for packet in &packets {
+        writer.write_packet(packet)?;
+    }
+    writer.flush()?;
+    drop(writer); // 自动完成finalize
 
-    // 4. 执行处理
-    let result = processor.process_batch(&input_data)?;
+    // 4. 读取数据包
+    let mut reader = PcapReader::new("./data", "example_dataset")?;
+    let mut read_count = 0;
+    let mut valid_count = 0;
+
+    while let Some(validated_packet) = reader.read_packet()? {
+        read_count += 1;
+        if validated_packet.is_valid() {
+            valid_count += 1;
+            println!("读取到有效数据包: {} 字节", validated_packet.packet_length());
+        } else {
+            println!("读取到损坏数据包: {} 字节", validated_packet.packet_length());
+        }
+    }
 
     // 5. 输出结果
     println!("处理完成:");
-    println!("  输入数据: {} 条", input_data.len());
-    println!("  处理成功: {} 条", result.success_count);
-    println!("  处理失败: {} 条", result.error_count);
+    println!("  写入数据包: {} 条", packets.len());
+    println!("  读取数据包: {} 条", read_count);
+    println!("  有效数据包: {} 条", valid_count);
 
     Ok(())
 }
-
-fn load_sample_data() -> Result<Vec<InputItem>, std::io::Error> {
-    // 示例数据加载逻辑
-    Ok(vec![
-        InputItem::new("sample1", b"data1".to_vec()),
-        InputItem::new("sample2", b"data2".to_vec()),
-    ])
-}
-```
-
-## 🔄 持续集成配置
-
-### GitHub Actions 工作流
-
-```yaml
-# .github/workflows/ci.yml
-name: CI
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run tests
-        run: cargo test --all-features
-
-      - name: Run benchmarks
-        run: cargo bench --no-run
-
-      - name: Check documentation
-        run: cargo doc --no-deps --all-features
 ```

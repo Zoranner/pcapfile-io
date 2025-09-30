@@ -63,14 +63,18 @@ alwaysApply: true
 
 ```rust
 // ✅ 通过参数注入依赖
-pub struct BusinessService<D: DataAccess> {
-    data_layer: D,
+pub struct PcapReader {
+    config: ReaderConfig,
+    file_reader: PcapFileReader,
+    index: PcapFileIndex,
+    cache: FileInfoCache,
 }
 
 // ✅ 使用 trait 抽象依赖
-pub trait DataAccess {
-    fn read_data(&self, id: &str) -> Result<Data>;
-    fn write_data(&self, data: &Data) -> Result<()>;
+pub trait FileAccess {
+    fn read_packet(&mut self) -> PcapResult<Option<DataPacket>>;
+    fn write_packet(&mut self, packet: &DataPacket) -> PcapResult<()>;
+    fn flush(&mut self) -> PcapResult<()>;
 }
 ```
 
@@ -89,12 +93,10 @@ src/
 │   ├── mod.rs             # 业务模块统一导出
 │   ├── config.rs          # 配置管理和验证逻辑
 │   ├── cache.rs           # 文件信息缓存管理
-│   ├── index/             # 索引系统
-│   │   ├── mod.rs         # 索引模块入口
-│   │   ├── reader.rs      # 索引读取逻辑
-│   │   ├── writer.rs      # 索引写入逻辑
-│   │   └── types.rs       # 索引数据结构
-│   └── processor.rs       # 数据处理业务逻辑
+│   └── index/             # 索引系统
+│       ├── mod.rs         # 索引模块入口
+│       ├── manager.rs     # 索引管理器
+│       └── types.rs       # 索引数据结构
 ├── data/                  # 数据访问层
 │   ├── mod.rs             # 数据模块统一导出
 │   ├── models.rs          # 核心数据结构
@@ -104,36 +106,35 @@ src/
 └── foundation/            # 基础设施层
     ├── mod.rs             # 基础模块统一导出
     ├── error.rs           # 错误类型定义和处理
-    ├── traits.rs          # 核心 trait 定义
-    ├── utils.rs           # 通用工具函数
-    └── types.rs           # 公共类型和常量定义
+    ├── types.rs           # 公共类型和常量定义
+    └── utils.rs           # 通用工具函数
 ```
 
 ### 模块职责规范
 
 **用户接口层 (`api/`)**：
 
-- 提供用户友好的 API 接口
+- 提供用户友好的 API 接口（PcapReader、PcapWriter）
 - 自动化资源管理和错误处理
-- 实现统一的 trait 接口
+- 隐藏内部实现复杂性
 
 **业务逻辑层 (`business/`)**：
 
-- 配置管理和验证逻辑
-- 缓存策略和性能优化
-- 业务流程编排和控制
+- 配置管理和验证逻辑（ReaderConfig、WriterConfig）
+- 缓存策略和性能优化（FileInfoCache）
+- 索引系统管理（PcapFileIndex、PidxIndex）
 
 **数据访问层 (`data/`)**：
 
-- 底层文件 I/O 操作
-- 数据格式解析和生成
-- 数据模型定义
+- 底层文件 I/O 操作（PcapFileReader、PcapFileWriter）
+- 数据格式解析和生成（PcapFormatProcessor）
+- 数据模型定义（DataPacket、DatasetInfo、FileInfo）
 
 **基础设施层 (`foundation/`)**：
 
-- 错误类型和处理机制
-- 通用工具函数
-- 核心接口定义
+- 错误类型和处理机制（PcapError、PcapResult）
+- 通用工具函数（ByteArrayExtensions、DateTimeExtensions）
+- 类型定义和常量（PcapErrorCode、constants）
 
 ## 🔌 接口设计原则
 
@@ -143,24 +144,21 @@ src/
 
 ```rust
 // ✅ 职责单一的 trait
-pub trait Readable {
-    type Item;
-    type Error;
-
-    fn read_item(&mut self) -> Result<Option<Self::Item>, Self::Error>;
-    fn reset(&mut self) -> Result<(), Self::Error>;
+pub trait PacketReader {
+    fn read_packet(&mut self) -> PcapResult<Option<ValidatedPacket>>;
+    fn read_packet_data_only(&mut self) -> PcapResult<Option<DataPacket>>;
+    fn read_packets(&mut self, count: usize) -> PcapResult<Vec<ValidatedPacket>>;
+    fn reset(&mut self) -> PcapResult<()>;
 }
 
-pub trait Writable {
-    type Item;
-    type Error;
-
-    fn write_item(&mut self, item: &Self::Item) -> Result<(), Self::Error>;
-    fn flush(&mut self) -> Result<(), Self::Error>;
+pub trait PacketWriter {
+    fn write_packet(&mut self, packet: &DataPacket) -> PcapResult<()>;
+    fn write_packets(&mut self, packets: &[DataPacket]) -> PcapResult<()>;
+    fn flush(&mut self) -> PcapResult<()>;
 }
 
 // ✅ 组合而非继承
-pub trait ReadWritable: Readable + Writable {}
+pub trait PacketProcessor: PacketReader + PacketWriter {}
 ```
 
 ### API 简化原则
@@ -175,26 +173,54 @@ pub trait ReadWritable: Readable + Writable {}
 ```rust
 // ✅ 分层配置结构
 #[derive(Debug, Clone)]
-pub struct Configuration {
-    pub api: ApiConfig,
-    pub business: BusinessConfig,
-    pub data: DataConfig,
+pub struct ReaderConfig {
+    pub buffer_size: usize,        // 缓冲区大小（字节）
+    pub index_cache_size: usize,   // 索引缓存大小（条目数）
+}
+
+#[derive(Debug, Clone)]
+pub struct WriterConfig {
+    pub buffer_size: usize,        // 缓冲区大小（字节）
+    pub index_cache_size: usize,   // 索引缓存大小（条目数）
+    pub max_packets_per_file: usize, // 每个文件最大数据包数
+    pub file_name_format: String,  // 文件名格式
+    pub auto_flush: bool,          // 自动刷新
 }
 
 // ✅ 预设配置模式
-impl Configuration {
-    pub fn development() -> Self { /* 开发环境配置 */ }
-    pub fn production() -> Self { /* 生产环境配置 */ }
-    pub fn high_performance() -> Self { /* 高性能配置 */ }
-    pub fn low_memory() -> Self { /* 低内存配置 */ }
+impl ReaderConfig {
+    pub fn default() -> Self {
+        Self {
+            buffer_size: 8192,
+            index_cache_size: 1000,
+        }
+    }
+    
+    pub fn high_performance() -> Self {
+        Self {
+            buffer_size: 65536,
+            index_cache_size: 10000,
+        }
+    }
+    
+    pub fn low_memory() -> Self {
+        Self {
+            buffer_size: 1024,
+            index_cache_size: 100,
+        }
+    }
 }
 
-// ✅ 分层配置验证
-impl Configuration {
-    pub fn validate(&self) -> Result<(), ConfigError> {
-        self.api.validate()
-            .and_then(|_| self.business.validate())
-            .and_then(|_| self.data.validate())
+// ✅ 配置验证
+impl ReaderConfig {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.buffer_size == 0 {
+            return Err("缓冲区大小不能为0".to_string());
+        }
+        if self.index_cache_size == 0 {
+            return Err("索引缓存大小不能为0".to_string());
+        }
+        Ok(())
     }
 }
 ```
@@ -205,24 +231,28 @@ impl Configuration {
 
 ```rust
 // ✅ RAII 模式自动管理资源
-pub struct ResourceManager {
-    resources: Vec<Resource>,
+pub struct PcapWriter {
+    config: WriterConfig,
+    file_writer: PcapFileWriter,
+    index: PcapFileIndex,
+    cache: FileInfoCache,
+    dataset_path: PathBuf,
+    dataset_name: String,
+    initialized: bool,
 }
 
-impl ResourceManager {
-    pub fn new() -> Self {
-        Self {
-            resources: Vec::new(),
-        }
+impl PcapWriter {
+    pub fn new<P: AsRef<Path>>(base_path: P, dataset_name: &str) -> PcapResult<Self> {
+        Self::new_with_config(base_path, dataset_name, WriterConfig::default())
     }
 }
 
-impl Drop for ResourceManager {
+impl Drop for PcapWriter {
     fn drop(&mut self) {
-        // 自动清理所有资源
-        for resource in &mut self.resources {
-            if let Err(e) = resource.cleanup() {
-                log::warn!("资源清理失败: {}", e);
+        // 自动完成finalize操作
+        if self.initialized {
+            if let Err(e) = self.finalize() {
+                log::warn!("PcapWriter 自动清理失败: {}", e);
             }
         }
     }
@@ -241,17 +271,16 @@ impl Drop for ResourceManager {
 ### 插件化架构
 
 ```rust
-// ✅ 插件接口定义
-pub trait Plugin: Send + Sync {
-    fn name(&self) -> &str;
-    fn version(&self) -> &str;
-    fn initialize(&mut self, config: &PluginConfig) -> Result<()>;
-    fn process(&self, input: &ProcessInput) -> Result<ProcessOutput>;
+// ✅ 扩展接口定义
+pub trait PacketProcessor: Send + Sync {
+    fn process_packet(&mut self, packet: &DataPacket) -> PcapResult<DataPacket>;
+    fn process_packets(&mut self, packets: &[DataPacket]) -> PcapResult<Vec<DataPacket>>;
+    fn reset(&mut self) -> PcapResult<()>;
 }
 
-// ✅ 插件管理器
-pub struct PluginManager {
-    plugins: HashMap<String, Box<dyn Plugin>>,
+// ✅ 处理器管理器
+pub struct ProcessorManager {
+    processors: HashMap<String, Box<dyn PacketProcessor>>,
 }
 ```
 

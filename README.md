@@ -24,7 +24,7 @@
 
 ```toml
 [dependencies]
-pcapfile-io = "0.1.0"
+pcapfile-io = "0.1.2"
 chrono = "0.4"  # 用于时间戳处理
 ```
 
@@ -34,28 +34,25 @@ chrono = "0.4"  # 用于时间戳处理
 
 ```rust
 use pcapfile_io::{PcapReader, PcapWriter, DataPacket};
-use pcapfile_io::business::config::{ReaderConfig, WriterConfig};
 use chrono::Utc;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 写入数据包
     {
-        let config = WriterConfig::default();
-        let mut writer = PcapWriter::new("./data", "my_dataset", config)?;
-        
+        let mut writer = PcapWriter::new("./data", "my_dataset")?;
+
         // 创建数据包
         let data = b"Hello, World!".to_vec();
         let packet = DataPacket::from_datetime(Utc::now(), data)?;
-        
+
         writer.write_packet(&packet)?;
         writer.flush()?;
     } // writer 自动完成 finalize
-    
+
     // 读取数据包（默认带校验结果）
     {
-        let config = ReaderConfig::default();
-        let mut reader = PcapReader::new("./data", "my_dataset", config)?;
-        
+        let mut reader = PcapReader::new("./data", "my_dataset")?;
+
         while let Some(validated_packet) = reader.read_packet()? {
             if validated_packet.is_valid() {
                 println!("读取到有效数据包: {} 字节", validated_packet.packet_length());
@@ -65,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     Ok(())
 }
 ```
@@ -74,18 +71,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use pcapfile_io::{PcapReader, DataPacket};
-use pcapfile_io::business::config::ReaderConfig;
 
 fn read_data_only() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ReaderConfig::default();
-    let mut reader = PcapReader::new("./data", "my_dataset", config)?;
-    
+    let mut reader = PcapReader::new("./data", "my_dataset")?;
+
     // 如果不关心校验结果，可以直接获取数据包
     while let Some(packet) = reader.read_packet_data_only()? {
         println!("读取到数据包: {} 字节", packet.packet_length());
         // 注意：这种方式仍然进行校验，只是不返回校验结果
     }
-    
+
     Ok(())
 }
 ```
@@ -94,13 +89,11 @@ fn read_data_only() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use pcapfile_io::{PcapWriter, DataPacket};
-use pcapfile_io::business::config::WriterConfig;
 use chrono::Utc;
 
 fn batch_operations() -> Result<(), Box<dyn std::error::Error>> {
-    let config = WriterConfig::default();
-    let mut writer = PcapWriter::new("./data", "batch_dataset", config)?;
-    
+    let mut writer = PcapWriter::new("./data", "batch_dataset")?;
+
     // 批量写入
     let mut packets = Vec::new();
     for i in 0..1000 {
@@ -108,10 +101,10 @@ fn batch_operations() -> Result<(), Box<dyn std::error::Error>> {
         let packet = DataPacket::from_datetime(Utc::now(), data)?;
         packets.push(packet);
     }
-    
+
     writer.write_packets(&packets)?;
     writer.flush()?;
-    
+
     Ok(())
 }
 ```
@@ -132,7 +125,7 @@ impl DataPacket {
     // 创建方法
     pub fn from_datetime(capture_time: DateTime<Utc>, data: Vec<u8>) -> Result<Self, String>;
     pub fn from_timestamp(timestamp_seconds: u32, timestamp_nanoseconds: u32, data: Vec<u8>) -> Result<Self, String>;
-    
+
     // 访问方法
     pub fn capture_time(&self) -> DateTime<Utc>;
     pub fn packet_length(&self) -> usize;
@@ -152,7 +145,7 @@ pub struct ValidatedPacket {
 impl ValidatedPacket {
     pub fn is_valid(&self) -> bool;
     pub fn is_invalid(&self) -> bool;
-    
+
     // 委托给内部数据包的方法
     pub fn packet_length(&self) -> usize;
     pub fn capture_time(&self) -> DateTime<Utc>;
@@ -170,21 +163,34 @@ pub struct PcapReader { /* ... */ }
 
 impl PcapReader {
     // 构造方法
-    pub fn new<P: AsRef<Path>>(base_path: P, dataset_name: &str, config: ReaderConfig) -> PcapResult<Self>;
-    
+    pub fn new<P: AsRef<Path>>(base_path: P, dataset_name: &str) -> PcapResult<Self>;
+    pub fn new_with_config<P: AsRef<Path>>(base_path: P, dataset_name: &str, config: ReaderConfig) -> PcapResult<Self>;
+
+    // 初始化方法
+    pub fn initialize(&mut self) -> PcapResult<()>;
+
     // 默认读取方法（带校验结果）
     pub fn read_packet(&mut self) -> PcapResult<Option<ValidatedPacket>>;
     pub fn read_packets(&mut self, count: usize) -> PcapResult<Vec<ValidatedPacket>>;
-    
+
     // 仅数据读取方法（不返回校验信息）
     pub fn read_packet_data_only(&mut self) -> PcapResult<Option<DataPacket>>;
     pub fn read_packets_data_only(&mut self, count: usize) -> PcapResult<Vec<DataPacket>>;
-    
+
     // 控制方法
     pub fn reset(&mut self) -> PcapResult<()>;
-    
+
     // 信息查询
     pub fn get_dataset_info(&mut self) -> PcapResult<DatasetInfo>;
+    pub fn get_file_info_list(&mut self) -> PcapResult<Vec<FileInfo>>;
+    pub fn dataset_path(&self) -> &Path;
+    pub fn dataset_name(&self) -> &str;
+
+    // 索引和缓存管理
+    pub fn index(&self) -> &IndexManager;
+    pub fn index_mut(&mut self) -> &mut IndexManager;
+    pub fn get_cache_stats(&self) -> CacheStats;
+    pub fn clear_cache(&mut self) -> PcapResult<()>;
 }
 ```
 
@@ -197,18 +203,31 @@ pub struct PcapWriter { /* ... */ }
 
 impl PcapWriter {
     // 构造方法
-    pub fn new<P: AsRef<Path>>(base_path: P, dataset_name: &str, config: WriterConfig) -> PcapResult<Self>;
-    
+    pub fn new<P: AsRef<Path>>(base_path: P, dataset_name: &str) -> PcapResult<Self>;
+    pub fn new_with_config<P: AsRef<Path>>(base_path: P, dataset_name: &str, config: WriterConfig) -> PcapResult<Self>;
+
+    // 初始化方法
+    pub fn initialize(&mut self) -> PcapResult<()>;
+    pub fn finalize(&mut self) -> PcapResult<()>;  // 手动完成，也可在 Drop 时自动调用
+
     // 写入方法
     pub fn write_packet(&mut self, packet: &DataPacket) -> PcapResult<()>;
     pub fn write_packets(&mut self, packets: &[DataPacket]) -> PcapResult<()>;
-    
+
     // 控制方法
     pub fn flush(&mut self) -> PcapResult<()>;
-    // finalize() 在 Drop 时自动调用
-    
+
     // 信息查询
     pub fn get_dataset_info(&self) -> DatasetInfo;
+    pub fn get_file_info_list(&self) -> Vec<FileInfo>;
+    pub fn dataset_path(&self) -> &Path;
+    pub fn dataset_name(&self) -> &str;
+
+    // 索引和缓存管理
+    pub fn index(&self) -> &IndexManager;
+    pub fn index_mut(&mut self) -> &mut IndexManager;
+    pub fn get_cache_stats(&self) -> CacheStats;
+    pub fn clear_cache(&mut self) -> PcapResult<()>;
 }
 ```
 
@@ -218,14 +237,14 @@ impl PcapWriter {
 
 ```rust
 pub struct ReaderConfig {
-    pub common: CommonConfig,
-    pub read_timeout: u64,  // 读取超时时间（毫秒）
+    pub buffer_size: usize,        // 缓冲区大小（字节）
+    pub index_cache_size: usize,   // 索引缓存大小（条目数）
 }
 
 impl ReaderConfig {
     pub fn default() -> Self;
-    pub fn high_performance() -> Self;  // 高性能配置
-    pub fn low_memory() -> Self;        // 低内存配置
+    pub fn validate(&self) -> Result<(), String>;  // 验证配置有效性
+    pub fn reset(&mut self);                       // 重置为默认值
 }
 ```
 
@@ -233,32 +252,17 @@ impl ReaderConfig {
 
 ```rust
 pub struct WriterConfig {
-    pub common: CommonConfig,
+    pub buffer_size: usize,             // 缓冲区大小（字节）
+    pub index_cache_size: usize,        // 索引缓存大小（条目数）
     pub max_packets_per_file: usize,    // 每个文件最大数据包数
     pub file_name_format: String,       // 文件命名格式
     pub auto_flush: bool,               // 自动刷新
-    pub write_timeout: u64,             // 写入超时时间（毫秒）
-    pub index_flush_interval: u64,      // 索引刷新间隔（毫秒）
 }
 
 impl WriterConfig {
     pub fn default() -> Self;
-    pub fn high_performance() -> Self;  // 高性能配置
-    pub fn low_memory() -> Self;        // 低内存配置
-    pub fn fast_write() -> Self;        // 快速写入配置
-}
-```
-
-#### `CommonConfig` - 通用配置
-
-```rust
-pub struct CommonConfig {
-    pub buffer_size: usize,             // 缓冲区大小（字节）
-    pub max_packet_size: usize,         // 最大数据包大小（字节）
-    pub enable_compression: bool,       // 是否启用压缩
-    pub index_cache_size: usize,        // 索引缓存大小（条目数）
-    pub enable_index_cache: bool,       // 是否启用文件索引缓存
-    pub temp_directory: PathBuf,        // 临时目录路径
+    pub fn validate(&self) -> Result<(), String>;  // 验证配置有效性
+    pub fn reset(&mut self);                       // 重置为默认值
 }
 ```
 
@@ -274,7 +278,7 @@ pub struct CommonConfig {
 
 ```rust
 // 处理可能损坏的数据集（默认方法）
-let mut reader = PcapReader::new("./data", "dataset", config)?;
+let mut reader = PcapReader::new("./data", "dataset")?;
 let mut valid_count = 0;
 let mut invalid_count = 0;
 
@@ -287,7 +291,7 @@ while let Some(validated_packet) = reader.read_packet()? {
         invalid_count += 1;
         // 记录损坏的数据包，但继续处理
         log::warn!("发现损坏数据包，时间戳: {}", validated_packet.capture_time());
-        
+
         // 可选择是否仍然使用损坏的数据
         if should_use_corrupted_data() {
             process_packet(&validated_packet.packet);
@@ -301,24 +305,28 @@ println!("处理完成: {} 有效, {} 损坏", valid_count, invalid_count);
 ### 性能优化配置
 
 ```rust
-// 高性能配置示例
-let high_perf_config = WriterConfig::high_performance();
-// - 64KB 缓冲区
-// - 每文件 2000 个数据包
-// - 关闭自动刷新
-// - 10秒索引刷新间隔
+// 使用默认配置（推荐）
+let mut writer = PcapWriter::new("./data", "my_dataset")?;
 
-// 低内存配置示例
-let low_mem_config = ReaderConfig::low_memory();
-// - 4KB 缓冲区
-// - 100 条目索引缓存
-// - 关闭索引缓存
+// 或者自定义配置
+use pcapfile_io::WriterConfig;
+let mut config = WriterConfig::default();
+config.buffer_size = 64 * 1024;        // 64KB 缓冲区
+config.max_packets_per_file = 2000;    // 每文件 2000 个数据包
+config.auto_flush = false;             // 关闭自动刷新
+
+// 验证配置
+if let Err(e) = config.validate() {
+    eprintln!("配置验证失败: {}", e);
+}
+
+let mut writer = PcapWriter::new_with_config("./data", "my_dataset", config)?;
 ```
 
 ### 数据集信息查询
 
 ```rust
-let mut reader = PcapReader::new("./data", "my_dataset", config)?;
+let mut reader = PcapReader::new("./data", "my_dataset")?;
 let info = reader.get_dataset_info()?;
 
 println!("数据集: {}", info.name);
@@ -337,28 +345,29 @@ println!("平均速率: {:.2} 包/秒", info.average_packet_rate());
 
 #### 文件头部（16 字节）
 
-| 偏移量 | 长度 | 字段名 | 描述 |
-|--------|------|--------|------|
-| 0 | 4 | Magic Number | 固定值 `0xD4C3B2A1` |
-| 4 | 2 | Major Version | 主版本号 `0x0002` |
-| 6 | 2 | Minor Version | 次版本号 `0x0004` |
-| 8 | 4 | Timezone Offset | 时区偏移量（秒） |
-| 12 | 4 | Timestamp Accuracy | 时间戳精度（纳秒） |
+| 偏移量 | 长度 | 字段名             | 描述                |
+| ------ | ---- | ------------------ | ------------------- |
+| 0      | 4    | Magic Number       | 固定值 `0xD4C3B2A1` |
+| 4      | 2    | Major Version      | 主版本号 `0x0002`   |
+| 6      | 2    | Minor Version      | 次版本号 `0x0004`   |
+| 8      | 4    | Timezone Offset    | 时区偏移量（秒）    |
+| 12     | 4    | Timestamp Accuracy | 时间戳精度（纳秒）  |
 
 #### 数据包格式
 
 每个数据包包含：
+
 - **数据包头部**（16 字节）
 - **数据内容**（可变长度）
 
 ##### 数据包头部（16 字节）
 
-| 偏移量 | 长度 | 字段名 | 描述 |
-|--------|------|--------|------|
-| 0 | 4 | Timestamp Seconds | 时间戳秒部分（UTC） |
-| 4 | 4 | Timestamp Nanoseconds | 时间戳纳秒部分（UTC） |
-| 8 | 4 | Packet Length | 数据包长度（字节） |
-| 12 | 4 | Checksum | 数据包校验和（CRC32） |
+| 偏移量 | 长度 | 字段名                | 描述                  |
+| ------ | ---- | --------------------- | --------------------- |
+| 0      | 4    | Timestamp Seconds     | 时间戳秒部分（UTC）   |
+| 4      | 4    | Timestamp Nanoseconds | 时间戳纳秒部分（UTC） |
+| 8      | 4    | Packet Length         | 数据包长度（字节）    |
+| 12     | 4    | Checksum              | 数据包校验和（CRC32） |
 
 ### 文件组织结构
 
@@ -395,32 +404,66 @@ cargo bench
 
 在典型硬件配置下的性能表现：
 
-| 操作 | 吞吐量 | 延迟 |
-|------|--------|------|
-| 写入 1KB 数据包 | ~100MB/s | <1ms |
-| 读取 1KB 数据包 | ~150MB/s | <0.5ms |
-| 批量写入 (1000包) | ~200MB/s | ~10ms |
-| 索引查询 | ~1M 查询/s | <1μs |
+| 操作               | 吞吐量     | 延迟   |
+| ------------------ | ---------- | ------ |
+| 写入 1KB 数据包    | ~100MB/s   | <1ms   |
+| 读取 1KB 数据包    | ~150MB/s   | <0.5ms |
+| 批量写入 (1000 包) | ~200MB/s   | ~10ms  |
+| 索引查询           | ~1M 查询/s | <1μs   |
 
 ## 🔍 错误处理
 
 ```rust
-use pcapfile_io::foundation::error::{PcapError, PcapResult};
+use pcapfile_io::{PcapError, PcapResult, PcapErrorCode};
 
-// 错误类型
+// 主要错误类型
 pub enum PcapError {
     FileNotFound(String),
     DirectoryNotFound(String),
-    InsufficientPermissions(String),
     InvalidFormat(String),
-    CorruptedData(String),
-    InvalidPacketSize(String),
+    CorruptedHeader(String),
+    CorruptedData { message: String, position: u64 },
+    ChecksumMismatch { expected: String, actual: String, position: u64 },
+    InvalidPacketSize { message: String, position: u64 },
+    PacketSizeExceedsRemainingBytes { expected: u32, remaining: u64, position: u64 },
+    TimestampParseError { message: String, position: u64 },
+    InvalidArgument(String),
+    InvalidState(String),
     Io(std::io::Error),
-    // ...
+    Serialization(String),
+    Unknown(String),
+}
+
+// 错误代码枚举
+pub enum PcapErrorCode {
+    Unknown = 0,
+    FileNotFound = 1001,
+    DirectoryNotFound = 1002,
+    InvalidFormat = 2001,
+    CorruptedHeader = 2002,
+    CorruptedData = 2003,
+    ChecksumMismatch = 2004,
+    InvalidPacketSize = 3001,
+    InvalidArgument = 3002,
+    InvalidState = 3003,
 }
 
 // 结果类型
 pub type PcapResult<T> = Result<T, PcapError>;
+
+// 错误处理示例
+match result {
+    Ok(data) => println!("操作成功: {:?}", data),
+    Err(PcapError::FileNotFound(path)) => {
+        eprintln!("文件未找到: {}", path);
+    }
+    Err(PcapError::CorruptedData { message, position }) => {
+        eprintln!("数据损坏: {}，位置: {}", message, position);
+    }
+    Err(e) => {
+        eprintln!("错误代码: {}, 详细信息: {}", e.error_code(), e);
+    }
+}
 ```
 
 ## 📚 示例项目
@@ -443,7 +486,7 @@ find examples -name "*.rs" -exec cargo run --example {} \;
 
 ```bash
 # 克隆项目
-git clone https://github.com/username/pcapfile-io.git
+git clone https://github.com/Zoranner/pcapfile-io.git
 cd pcapfile-io
 
 # 安装依赖
@@ -457,22 +500,11 @@ cargo fmt --check
 cargo clippy
 ```
 
-### 提交规范
-
-- 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范
-- 确保所有测试通过
-- 添加适当的文档和注释
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
 ## 🔗 相关链接
 
 - [API 文档](https://docs.rs/pcapfile-io)
 - [Crates.io](https://crates.io/crates/pcapfile-io)
-- [问题反馈](https://github.com/username/pcapfile-io/issues)
-- [更新日志](CHANGELOG.md)
+- [问题反馈](https://github.com/Zoranner/pcapfile-io/issues)
 
 ---
 

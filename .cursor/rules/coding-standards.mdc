@@ -183,32 +183,46 @@ impl DataProcessor {
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ProcessError {
-    #[error("输入数据无效: {details}")]
-    InvalidInput { details: String },
+pub enum PcapError {
+    #[error("文件未找到: {0}")]
+    FileNotFound(String),
 
-    #[error("配置错误: {message}")]
-    InvalidConfig { message: String },
+    #[error("目录不存在: {0}")]
+    DirectoryNotFound(String),
+
+    #[error("无效的文件格式: {0}")]
+    InvalidFormat(String),
+
+    #[error("文件头损坏: {0}")]
+    CorruptedHeader(String),
+
+    #[error("数据包损坏: {message}，位置 {position}")]
+    CorruptedData { message: String, position: u64 },
+
+    #[error("校验和不匹配: 期望 {expected}, 实际 {actual}，位置 {position}")]
+    ChecksumMismatch { expected: String, actual: String, position: u64 },
+
+    #[error("数据包大小无效: {message}，位置 {position}")]
+    InvalidPacketSize { message: String, position: u64 },
+
+    #[error("参数无效: {0}")]
+    InvalidArgument(String),
+
+    #[error("操作状态无效: {0}")]
+    InvalidState(String),
 
     #[error("I/O 操作失败: {source}")]
-    IoError {
-        #[from]
-        source: std::io::Error
-    },
+    Io(#[from] std::io::Error),
 
-    #[error("处理超时，期望在 {timeout_secs} 秒内完成")]
-    Timeout { timeout_secs: u64 },
+    #[error("序列化错误: {0}")]
+    Serialization(String),
 
-    #[error("资源不足: {resource} 当前使用 {current}，限制 {limit}")]
-    ResourceLimit {
-        resource: String,
-        current: usize,
-        limit: usize,
-    },
+    #[error("未知错误: {0}")]
+    Unknown(String),
 }
 
 // 项目统一的 Result 类型
-pub type Result<T> = std::result::Result<T, ProcessError>;
+pub type PcapResult<T> = std::result::Result<T, PcapError>;
 ```
 
 ### 分层错误处理策略
@@ -217,50 +231,50 @@ pub type Result<T> = std::result::Result<T, ProcessError>;
 
 ```rust
 // 数据访问层：转换底层错误
-impl FileReader {
-    pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
+impl PcapFileReader {
+    pub fn read_file<P: AsRef<Path>>(path: P) -> PcapResult<Vec<u8>> {
         std::fs::read(&path).map_err(|io_err| {
-            ProcessError::IoError {
-                source: io_err
-            }
+            PcapError::Io(io_err)
         })
     }
 }
 
 // 业务逻辑层：添加业务上下文
-impl DataProcessor {
-    pub fn load_input(&mut self, file_path: &Path) -> Result<InputData> {
-        // 尝试读取文件
-        let raw_data = FileReader::read_file(file_path)
-            .map_err(|e| ProcessError::InvalidInput {
-                details: format!("无法读取输入文件 {file_path:?}: {e}")
-            })?;
+impl PcapReader {
+    pub fn load_dataset(&mut self, dataset_path: &Path) -> PcapResult<DatasetInfo> {
+        // 尝试读取数据集
+        let dataset_info = self.get_dataset_info()
+            .map_err(|e| PcapError::InvalidFormat(
+                format!("无法读取数据集 {dataset_path:?}: {e}")
+            ))?;
 
-        // 解析数据格式
-        InputData::parse(&raw_data)
-            .map_err(|parse_err| ProcessError::InvalidInput {
-                details: format!("文件 {file_path:?} 格式解析失败: {parse_err}")
-            })
+        // 验证数据集完整性
+        if !dataset_info.has_index {
+            return Err(PcapError::InvalidFormat(
+                format!("数据集 {dataset_path:?} 缺少索引文件")
+            ));
+        }
+
+        Ok(dataset_info)
     }
 }
 
 // API 层：提供用户友好的错误信息
-impl PublicApi {
-    pub fn process_file<P: AsRef<Path>>(&mut self, path: P) -> Result<ProcessResult> {
-        let path_ref = path.as_ref();
+impl PcapReader {
+    pub fn new<P: AsRef<Path>>(base_path: P, dataset_name: &str) -> PcapResult<Self> {
+        let path_ref = base_path.as_ref();
 
-        // 检查文件是否存在
+        // 检查基础路径是否存在
         if !path_ref.exists() {
-            return Err(ProcessError::InvalidInput {
-                details: format!("文件不存在: {path_ref:?}")
-            });
+            return Err(PcapError::DirectoryNotFound(
+                format!("基础路径不存在: {path_ref:?}")
+            ));
         }
 
-        // 执行处理逻辑
-        self.processor.load_input(path_ref)
-            .and_then(|input| self.processor.process(input))
+        // 执行初始化逻辑
+        Self::new_with_config(base_path, dataset_name, ReaderConfig::default())
             .map_err(|e| {
-                log::error!("处理文件 {:?} 失败: {}", path_ref, e);
+                log::error!("创建读取器失败: {}", e);
                 e
             })
     }
@@ -270,20 +284,22 @@ impl PublicApi {
 ### 错误恢复和降级策略
 
 ```rust
-impl DataProcessor {
-    pub fn process_with_fallback(&mut self, input: InputData) -> Result<ProcessResult> {
-        // 尝试主要处理路径
-        match self.process_primary(&input) {
-            Ok(result) => Ok(result),
-            Err(ProcessError::ResourceLimit { .. }) => {
-                // 资源不足时降级到简化处理
-                log::warn!("资源不足，切换到简化处理模式");
-                self.process_simplified(&input)
+impl PcapReader {
+    pub fn read_with_fallback(&mut self) -> PcapResult<Option<ValidatedPacket>> {
+        // 尝试主要读取路径
+        match self.read_packet() {
+            Ok(Some(packet)) => Ok(Some(packet)),
+            Ok(None) => Ok(None), // 正常结束
+            Err(PcapError::CorruptedData { .. }) => {
+                // 数据损坏时跳过并继续
+                log::warn!("发现损坏数据包，跳过继续处理");
+                self.read_packet() // 递归尝试下一个
             },
-            Err(ProcessError::Timeout { .. }) => {
-                // 超时时尝试部分处理
-                log::warn!("处理超时，尝试部分处理");
-                self.process_partial(&input)
+            Err(PcapError::InvalidFormat { .. }) => {
+                // 格式错误时尝试重置
+                log::warn!("格式错误，尝试重置读取器");
+                self.reset()?;
+                self.read_packet()
             },
             Err(other) => Err(other), // 其他错误直接返回
         }
