@@ -402,14 +402,88 @@ cargo bench
 
 ## 📊 性能基准
 
-在典型硬件配置下的性能表现：
+基于 Criterion.rs 框架的性能测试结果：
 
-| 操作               | 吞吐量     | 延迟   |
-| ------------------ | ---------- | ------ |
-| 写入 1KB 数据包    | ~100MB/s   | <1ms   |
-| 读取 1KB 数据包    | ~150MB/s   | <0.5ms |
-| 批量写入 (1000 包) | ~200MB/s   | ~10ms  |
-| 索引查询           | ~1M 查询/s | <1μs   |
+### 读取性能
+
+| 操作类型 | 平均延迟 | 单包成本 |
+|---------|---------|---------|
+| 单包完整读取（含校验） | 32.9ms | - |
+| 单包数据读取（仅数据） | 22.1ms | - |
+| 批量读取 10 包 | 19.9ms | 2.0ms/包 |
+| 批量读取 100 包 | 31.0ms | 0.31ms/包 |
+| 顺序读取全部 | 23.6ms | - |
+
+### 写入性能
+
+| 操作类型 | 平均延迟 | 单包成本 |
+|---------|---------|---------|
+| 单包写入 64B | 6.0ms | - |
+| 单包写入 4KB | 5.0ms | - |
+| 批量写入 10 包 | 5.6ms | 0.56ms/包 |
+| 批量写入 100 包 | 6.5ms | 0.065ms/包 |
+
+### 索引与查询性能
+
+| 操作类型 | 平均延迟 |
+|---------|---------|
+| 索引生成 | 18.6ms |
+| 索引验证 | 20.1ms |
+| 随机访问 | 19.6ms |
+| 精确时间戳查找 | 34.8ms |
+| 时间范围查询 10 包 | 27.4ms |
+| 时间范围查询 100 包 | 21.2ms |
+
+### 运行基准测试
+
+```bash
+# 运行所有基准测试
+cargo bench
+
+# 运行特定基准测试
+cargo bench --bench read_performance
+cargo bench --bench write_performance
+cargo bench --bench index_performance
+
+# 查看测试报告
+# 报告位于: target/criterion/report/index.html
+```
+
+### 性能优化建议
+
+**批量操作优先**
+```rust
+// ✅ 推荐：批量写入
+writer.write_packets(&packets)?;
+
+// ❌ 避免：逐个写入
+for packet in &packets {
+    writer.write_packet(packet)?;
+}
+```
+
+**控制刷新频率**
+```rust
+let mut config = WriterConfig::default();
+config.auto_flush = false;  // 关闭自动刷新
+
+let mut writer = PcapWriter::new_with_config("./data", "dataset", config)?;
+
+// 批量写入后手动刷新
+for chunk in packets.chunks(1000) {
+    writer.write_packets(chunk)?;
+}
+writer.flush()?;
+```
+
+**合理配置缓冲区**
+```rust
+let mut config = ReaderConfig::default();
+config.buffer_size = 64 * 1024;  // 64KB 缓冲区，适合大数据包
+config.index_cache_size = 5000;   // 增大索引缓存
+
+let reader = PcapReader::new_with_config("./data", "dataset", config)?;
+```
 
 ## 🔍 错误处理
 
@@ -473,9 +547,60 @@ match result {
 ```bash
 # 基本使用
 cargo run --example dataset_usage
+```
 
-# 运行所有示例
-find examples -name "*.rs" -exec cargo run --example {} \;
+### 常见问题
+
+**Q: 如何处理损坏的数据包？**
+
+A: 库会自动跳过损坏的数据包并继续处理，通过 `ValidatedPacket` 可以知道哪些包损坏了：
+
+```rust
+while let Some(validated_packet) = reader.read_packet()? {
+    if validated_packet.is_valid() {
+        // 处理有效数据包
+    } else {
+        log::warn!("发现损坏数据包，跳过");
+    }
+}
+```
+
+**Q: 如何优化大数据集的读取性能？**
+
+A: 使用批量读取和合适的配置：
+
+```rust
+let mut config = ReaderConfig::default();
+config.buffer_size = 64 * 1024;    // 增大缓冲区
+config.index_cache_size = 10000;   // 增大索引缓存
+
+let mut reader = PcapReader::new_with_config("./data", "dataset", config)?;
+
+// 批量读取
+let packets = reader.read_packets(1000)?;
+```
+
+**Q: 索引文件何时生成？**
+
+A: 索引文件在以下情况自动生成：
+- 第一次读取数据集时
+- 索引文件不存在或损坏时
+- 可以手动调用 `regenerate_index()` 强制重新生成
+
+**Q: 如何按时间范围查询数据包？**
+
+A: 使用时间戳索引功能：
+
+```rust
+let mut reader = PcapReader::new("./data", "dataset")?;
+reader.initialize()?;
+
+// 定义时间范围（纳秒）
+let start_time = start_datetime.timestamp() as u64 * 1_000_000_000;
+let end_time = end_datetime.timestamp() as u64 * 1_000_000_000;
+
+// 读取时间范围内的所有数据包
+let packets = reader.read_packets_by_time_range(start_time, end_time)?;
 ```
 
 ## 🤝 贡献指南

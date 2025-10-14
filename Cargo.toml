@@ -35,3 +35,15 @@ path = "src/lib.rs"
 [[example]]
 name = "dataset_usage"
 path = "examples/dataset_usage.rs"
+
+[[bench]]
+name = "read_performance"
+harness = false
+
+[[bench]]
+name = "write_performance"
+harness = false
+
+[[bench]]
+name = "index_performance"
+harness = false
