@@ -31,9 +31,10 @@ pub fn clean_dataset_directory<P: AsRef<Path>>(
 
 /// 设置测试环境，为每个测试创建唯一目录并返回路径
 #[allow(dead_code)]
-pub fn setup_test_environment() -> PcapResult<std::path::PathBuf> {
+pub fn setup_test_environment(
+) -> PcapResult<std::path::PathBuf> {
     let base_path = Path::new(TEST_BASE_PATH);
-    
+
     // 确保基础目录存在
     if !base_path.exists() {
         fs::create_dir_all(base_path)

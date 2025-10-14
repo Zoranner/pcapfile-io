@@ -120,16 +120,16 @@ impl PidxIndex {
 
     pub fn build_timestamp_index(&mut self) {
         self.timestamp_index.clear();
-        for (file_idx, file_index) in self.data_files.files.iter().enumerate() {
+        for (file_idx, file_index) in
+            self.data_files.files.iter().enumerate()
+        {
             for packet in &file_index.data_packets {
                 let pointer = TimestampPointer {
                     file_index: file_idx,
                     entry: packet.clone(),
                 };
-                self.timestamp_index.insert(
-                    packet.timestamp_ns,
-                    pointer,
-                );
+                self.timestamp_index
+                    .insert(packet.timestamp_ns, pointer);
             }
         }
         log::debug!(
@@ -151,8 +151,11 @@ impl PidxIndex {
         end_ns: u64,
     ) -> Vec<&TimestampPointer> {
         let mut packets = Vec::new();
-        for (timestamp_ns, pointer) in &self.timestamp_index {
-            if *timestamp_ns >= start_ns && *timestamp_ns <= end_ns {
+        for (timestamp_ns, pointer) in &self.timestamp_index
+        {
+            if *timestamp_ns >= start_ns
+                && *timestamp_ns <= end_ns
+            {
                 packets.push(pointer);
             }
         }

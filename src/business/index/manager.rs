@@ -282,7 +282,8 @@ impl IndexManager {
                     }
 
                     // 获取当前文件在索引中的位置
-                    let file_index_position = index.data_files.files.len();
+                    let file_index_position =
+                        index.data_files.files.len();
 
                     // 构建时间戳索引（带文件引用）
                     for packet in &file_index.data_packets {

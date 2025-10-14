@@ -495,11 +495,15 @@ impl PcapReader {
                         "索引未加载".to_string(),
                     )
                 })?;
-            
-            index.get_packets_in_range(
-                start_timestamp_ns,
-                end_timestamp_ns,
-            ).into_iter().cloned().collect::<Vec<_>>()
+
+            index
+                .get_packets_in_range(
+                    start_timestamp_ns,
+                    end_timestamp_ns,
+                )
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>()
         };
 
         let mut result_packets = Vec::new();
@@ -508,22 +512,34 @@ impl PcapReader {
         // 按时间顺序读取数据包
         for pointer in pointers {
             // 检查是否需要切换文件
-            if current_file_index != Some(pointer.file_index) {
+            if current_file_index
+                != Some(pointer.file_index)
+            {
                 self.open_file(pointer.file_index)?;
-                current_file_index = Some(pointer.file_index);
+                current_file_index =
+                    Some(pointer.file_index);
             }
 
             // 确保文件已打开
             self.ensure_current_file_open()?;
 
             // 读取指定位置的数据包
-            let packet_result = self.current_reader.as_mut().unwrap().read_packet_at(pointer.entry.byte_offset);
-            
+            let packet_result = self
+                .current_reader
+                .as_mut()
+                .unwrap()
+                .read_packet_at(pointer.entry.byte_offset);
+
             match packet_result {
                 Ok(packet) => {
                     // 验证时间戳是否在范围内
-                    let packet_timestamp = packet.packet.get_timestamp_ns();
-                    if packet_timestamp >= start_timestamp_ns && packet_timestamp <= end_timestamp_ns {
+                    let packet_timestamp =
+                        packet.packet.get_timestamp_ns();
+                    if packet_timestamp
+                        >= start_timestamp_ns
+                        && packet_timestamp
+                            <= end_timestamp_ns
+                    {
                         result_packets.push(packet);
                     }
                 }
@@ -678,10 +694,14 @@ impl PcapReader {
                 .index_manager
                 .get_index()
                 .ok_or_else(|| {
-                    PcapError::InvalidState("索引未加载".to_string())
+                    PcapError::InvalidState(
+                        "索引未加载".to_string(),
+                    )
                 })?;
 
-            match index.find_packet_by_timestamp(timestamp_ns) {
+            match index
+                .find_packet_by_timestamp(timestamp_ns)
+            {
                 Some(ptr) => ptr.clone(),
                 None => return Ok(None),
             }
@@ -696,16 +716,23 @@ impl PcapReader {
         self.ensure_current_file_open()?;
 
         // 读取指定位置的数据包
-        let packet_result = self.current_reader.as_mut().unwrap().read_packet_at(pointer.entry.byte_offset);
-        
+        let packet_result = self
+            .current_reader
+            .as_mut()
+            .unwrap()
+            .read_packet_at(pointer.entry.byte_offset);
+
         match packet_result {
             Ok(packet) => {
                 // 验证时间戳是否匹配
-                if packet.packet.get_timestamp_ns() == timestamp_ns {
+                if packet.packet.get_timestamp_ns()
+                    == timestamp_ns
+                {
                     Ok(Some(packet))
                 } else {
                     Err(PcapError::InvalidState(
-                        "读取的数据包时间戳不匹配".to_string()
+                        "读取的数据包时间戳不匹配"
+                            .to_string(),
                     ))
                 }
             }

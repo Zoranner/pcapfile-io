@@ -7,14 +7,17 @@ use pcapfile_io::{
 };
 
 mod common;
-use common::{clean_dataset_directory, create_test_packet, setup_test_environment};
+use common::{
+    clean_dataset_directory, create_test_packet,
+    setup_test_environment,
+};
 
 #[test]
 fn test_auto_index_with_small_dataset() {
     const TEST_NAME: &str =
         "test_auto_index_with_small_dataset";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);
@@ -69,8 +72,8 @@ fn test_auto_index_with_small_dataset() {
 fn test_auto_index_with_multiple_files() {
     const TEST_NAME: &str =
         "test_auto_index_with_multiple_files";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);
@@ -127,8 +130,8 @@ fn test_auto_index_with_multiple_files() {
 fn test_manual_index_generation_after_write() {
     const TEST_NAME: &str =
         "test_manual_index_generation_after_write";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);
@@ -186,8 +189,8 @@ fn test_manual_index_generation_after_write() {
 #[test]
 fn test_index_consistency_check() {
     const TEST_NAME: &str = "test_index_consistency_check";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);

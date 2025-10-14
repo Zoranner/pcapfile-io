@@ -8,13 +8,17 @@ use pcapfile_io::{
 use std::time::Duration;
 
 mod common;
-use common::{clean_dataset_directory, create_test_packet, setup_test_environment};
+use common::{
+    clean_dataset_directory, create_test_packet,
+    setup_test_environment,
+};
 
 #[test]
 fn test_read_packets_by_time_range() {
-    const TEST_NAME: &str = "test_read_packets_by_time_range";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    const TEST_NAME: &str =
+        "test_read_packets_by_time_range";
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);
@@ -39,13 +43,14 @@ fn test_read_packets_by_time_range() {
 
     let mut written_timestamps = Vec::new();
     for i in 0..PACKET_COUNT {
-        let packet = create_test_packet(i as u32, PACKET_SIZE)
-            .expect("创建测试数据包失败");
+        let packet =
+            create_test_packet(i as u32, PACKET_SIZE)
+                .expect("创建测试数据包失败");
         written_timestamps.push(packet.get_timestamp_ns());
         writer
             .write_packet(&packet)
             .expect("写入数据包失败");
-        
+
         // 添加小延迟确保时间戳递增
         std::thread::sleep(Duration::from_micros(10));
     }
@@ -66,7 +71,10 @@ fn test_read_packets_by_time_range() {
     let end_timestamp = written_timestamps[800];
 
     let range_packets = reader
-        .read_packets_by_time_range(start_timestamp, end_timestamp)
+        .read_packets_by_time_range(
+            start_timestamp,
+            end_timestamp,
+        )
         .expect("时间范围读取失败");
 
     // 验证结果
@@ -75,8 +83,10 @@ fn test_read_packets_by_time_range() {
     // 验证时间戳顺序
     for i in 1..range_packets.len() {
         assert!(
-            range_packets[i].packet.get_timestamp_ns() 
-                >= range_packets[i-1].packet.get_timestamp_ns(),
+            range_packets[i].packet.get_timestamp_ns()
+                >= range_packets[i - 1]
+                    .packet
+                    .get_timestamp_ns(),
             "时间戳顺序错误"
         );
     }
@@ -90,14 +100,17 @@ fn test_read_packets_by_time_range() {
         );
     }
 
-    println!("✅ 时间范围读取测试通过：{} 个数据包", range_packets.len());
+    println!(
+        "✅ 时间范围读取测试通过：{} 个数据包",
+        range_packets.len()
+    );
 }
 
 #[test]
 fn test_read_packet_by_timestamp() {
     const TEST_NAME: &str = "test_read_packet_by_timestamp";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);
@@ -117,13 +130,14 @@ fn test_read_packet_by_timestamp() {
 
     let mut written_timestamps = Vec::new();
     for i in 0..PACKET_COUNT {
-        let packet = create_test_packet(i as u32, PACKET_SIZE)
-            .expect("创建测试数据包失败");
+        let packet =
+            create_test_packet(i as u32, PACKET_SIZE)
+                .expect("创建测试数据包失败");
         written_timestamps.push(packet.get_timestamp_ns());
         writer
             .write_packet(&packet)
             .expect("写入数据包失败");
-        
+
         // 添加小延迟确保时间戳递增
         std::thread::sleep(Duration::from_micros(5));
     }
@@ -141,10 +155,10 @@ fn test_read_packet_by_timestamp() {
 
     // 测试几个不同的时间戳
     let test_indices = [0, 100, 250, 400, 499];
-    
+
     for &index in &test_indices {
         let target_timestamp = written_timestamps[index];
-        
+
         let packet = reader
             .read_packet_by_timestamp(target_timestamp)
             .expect("精确时间戳读取失败")
@@ -165,21 +179,25 @@ fn test_read_packet_by_timestamp() {
     }
 
     // 测试不存在的时间戳
-    let non_existent_timestamp = written_timestamps[0] - 1000;
+    let non_existent_timestamp =
+        written_timestamps[0] - 1000;
     let result = reader
         .read_packet_by_timestamp(non_existent_timestamp)
         .expect("读取不存在的时间戳失败");
-    
+
     assert!(result.is_none(), "应该返回None");
 
-    println!("✅ 精确时间戳读取测试通过：{} 个测试点", test_indices.len());
+    println!(
+        "✅ 精确时间戳读取测试通过：{} 个测试点",
+        test_indices.len()
+    );
 }
 
 #[test]
 fn test_seek_by_timestamp() {
     const TEST_NAME: &str = "test_seek_by_timestamp";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);
@@ -199,13 +217,14 @@ fn test_seek_by_timestamp() {
 
     let mut written_timestamps = Vec::new();
     for i in 0..PACKET_COUNT {
-        let packet = create_test_packet(i as u32, PACKET_SIZE)
-            .expect("创建测试数据包失败");
+        let packet =
+            create_test_packet(i as u32, PACKET_SIZE)
+                .expect("创建测试数据包失败");
         written_timestamps.push(packet.get_timestamp_ns());
         writer
             .write_packet(&packet)
             .expect("写入数据包失败");
-        
+
         // 添加小延迟确保时间戳递增
         std::thread::sleep(Duration::from_micros(3));
     }
@@ -229,13 +248,13 @@ fn test_seek_by_timestamp() {
         .expect("未找到时间戳");
 
     assert_eq!(
-        pointer.entry.timestamp_ns,
-        exact_timestamp,
+        pointer.entry.timestamp_ns, exact_timestamp,
         "定位的时间戳不匹配"
     );
 
     // 测试近似匹配
-    let approximate_timestamp = written_timestamps[75] + 100; // 稍微偏移
+    let approximate_timestamp =
+        written_timestamps[75] + 100; // 稍微偏移
     let pointer = reader
         .seek_by_timestamp(approximate_timestamp)
         .expect("近似时间戳定位失败")
@@ -244,15 +263,15 @@ fn test_seek_by_timestamp() {
     // 验证找到的是最接近的时间戳
     let found_timestamp = pointer.entry.timestamp_ns;
     let expected_timestamp = written_timestamps[75];
-    
+
     assert_eq!(
-        found_timestamp,
-        expected_timestamp,
+        found_timestamp, expected_timestamp,
         "找到的不是最接近的时间戳"
     );
 
     // 验证时间差
-    let diff = found_timestamp.abs_diff(approximate_timestamp);
+    let diff =
+        found_timestamp.abs_diff(approximate_timestamp);
     assert!(diff <= 100, "时间差过大: {diff}");
 
     println!("✅ 时间戳定位测试通过");
@@ -261,8 +280,8 @@ fn test_seek_by_timestamp() {
 #[test]
 fn test_cross_file_random_access() {
     const TEST_NAME: &str = "test_cross_file_random_access";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);
@@ -287,13 +306,14 @@ fn test_cross_file_random_access() {
 
     let mut written_timestamps = Vec::new();
     for i in 0..PACKET_COUNT {
-        let packet = create_test_packet(i as u32, PACKET_SIZE)
-            .expect("创建测试数据包失败");
+        let packet =
+            create_test_packet(i as u32, PACKET_SIZE)
+                .expect("创建测试数据包失败");
         written_timestamps.push(packet.get_timestamp_ns());
         writer
             .write_packet(&packet)
             .expect("写入数据包失败");
-        
+
         // 添加小延迟确保时间戳递增
         std::thread::sleep(Duration::from_micros(2));
     }
@@ -311,10 +331,10 @@ fn test_cross_file_random_access() {
 
     // 测试不同文件中的数据包
     let test_indices = [50, 250, 450, 650, 850]; // 分布在不同的文件中
-    
+
     for &index in &test_indices {
         let target_timestamp = written_timestamps[index];
-        
+
         let packet = reader
             .read_packet_by_timestamp(target_timestamp)
             .expect("跨文件随机访问失败")
@@ -336,10 +356,13 @@ fn test_cross_file_random_access() {
 
     // 测试跨文件时间范围读取
     let start_timestamp = written_timestamps[100]; // 第1个文件
-    let end_timestamp = written_timestamps[700];   // 第4个文件
+    let end_timestamp = written_timestamps[700]; // 第4个文件
 
     let range_packets = reader
-        .read_packets_by_time_range(start_timestamp, end_timestamp)
+        .read_packets_by_time_range(
+            start_timestamp,
+            end_timestamp,
+        )
         .expect("跨文件时间范围读取失败");
 
     assert_eq!(range_packets.len(), 601); // 100到700，包含两端
@@ -347,21 +370,27 @@ fn test_cross_file_random_access() {
     // 验证跨文件读取的数据包时间戳顺序
     for i in 1..range_packets.len() {
         assert!(
-            range_packets[i].packet.get_timestamp_ns() 
-                >= range_packets[i-1].packet.get_timestamp_ns(),
+            range_packets[i].packet.get_timestamp_ns()
+                >= range_packets[i - 1]
+                    .packet
+                    .get_timestamp_ns(),
             "跨文件读取时间戳顺序错误"
         );
     }
 
-    println!("✅ 跨文件随机访问测试通过：{} 个文件，{} 个测试点", 
-             (PACKET_COUNT + 199) / 200, test_indices.len());
+    println!(
+        "✅ 跨文件随机访问测试通过：{} 个文件，{} 个测试点",
+        PACKET_COUNT.div_ceil(200),
+        test_indices.len()
+    );
 }
 
 #[test]
 fn test_timestamp_index_edge_cases() {
-    const TEST_NAME: &str = "test_timestamp_index_edge_cases";
-    let dataset_path = setup_test_environment()
-        .expect("设置测试环境失败");
+    const TEST_NAME: &str =
+        "test_timestamp_index_edge_cases";
+    let dataset_path =
+        setup_test_environment().expect("设置测试环境失败");
 
     // 清理测试数据集目录
     let test_dataset_path = dataset_path.join(TEST_NAME);
@@ -381,13 +410,14 @@ fn test_timestamp_index_edge_cases() {
 
     let mut written_timestamps = Vec::new();
     for i in 0..PACKET_COUNT {
-        let packet = create_test_packet(i as u32, PACKET_SIZE)
-            .expect("创建测试数据包失败");
+        let packet =
+            create_test_packet(i as u32, PACKET_SIZE)
+                .expect("创建测试数据包失败");
         written_timestamps.push(packet.get_timestamp_ns());
         writer
             .write_packet(&packet)
             .expect("写入数据包失败");
-        
+
         // 添加小延迟确保时间戳递增
         std::thread::sleep(Duration::from_micros(1));
     }
@@ -409,15 +439,22 @@ fn test_timestamp_index_edge_cases() {
         .read_packet_by_timestamp(min_timestamp)
         .expect("最小时间戳读取失败")
         .expect("未找到最小时间戳的数据包");
-    assert_eq!(packet.packet.get_timestamp_ns(), min_timestamp);
+    assert_eq!(
+        packet.packet.get_timestamp_ns(),
+        min_timestamp
+    );
 
     // 测试最大时间戳
-    let max_timestamp = written_timestamps[PACKET_COUNT - 1];
+    let max_timestamp =
+        written_timestamps[PACKET_COUNT - 1];
     let packet = reader
         .read_packet_by_timestamp(max_timestamp)
         .expect("最大时间戳读取失败")
         .expect("未找到最大时间戳的数据包");
-    assert_eq!(packet.packet.get_timestamp_ns(), max_timestamp);
+    assert_eq!(
+        packet.packet.get_timestamp_ns(),
+        max_timestamp
+    );
 
     // 测试超出范围的时间戳
     let before_min = min_timestamp - 1000;
@@ -435,16 +472,32 @@ fn test_timestamp_index_edge_cases() {
 
     // 测试空时间范围
     let empty_range = reader
-        .read_packets_by_time_range(after_max, after_max + 1000)
+        .read_packets_by_time_range(
+            after_max,
+            after_max + 1000,
+        )
         .expect("空时间范围读取失败");
-    assert!(empty_range.is_empty(), "空时间范围应该返回空结果");
+    assert!(
+        empty_range.is_empty(),
+        "空时间范围应该返回空结果"
+    );
 
     // 测试单点时间范围
     let single_point = reader
-        .read_packets_by_time_range(min_timestamp, min_timestamp)
+        .read_packets_by_time_range(
+            min_timestamp,
+            min_timestamp,
+        )
         .expect("单点时间范围读取失败");
-    assert_eq!(single_point.len(), 1, "单点时间范围应该返回1个数据包");
-    assert_eq!(single_point[0].packet.get_timestamp_ns(), min_timestamp);
+    assert_eq!(
+        single_point.len(),
+        1,
+        "单点时间范围应该返回1个数据包"
+    );
+    assert_eq!(
+        single_point[0].packet.get_timestamp_ns(),
+        min_timestamp
+    );
 
     println!("✅ 时间戳索引边界情况测试通过");
 }
