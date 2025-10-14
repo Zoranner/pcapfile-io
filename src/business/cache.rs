@@ -23,6 +23,7 @@ pub struct CacheStats {
 
 impl CacheStats {
     /// 创建新的缓存统计信息
+    #[inline]
     pub fn new() -> Self {
         Self {
             cache_entries: 0,
@@ -33,6 +34,7 @@ impl CacheStats {
     }
 
     /// 更新命中率
+    #[inline]
     pub fn update_hit_rate(&mut self) {
         let total_requests =
             self.hit_count + self.miss_count;

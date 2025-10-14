@@ -13,41 +13,49 @@ pub struct ValidatedPacket {
 
 impl ValidatedPacket {
     /// 创建带校验结果的数据包
+    #[inline]
     pub fn new(packet: DataPacket, is_valid: bool) -> Self {
         Self { packet, is_valid }
     }
 
     /// 检查是否有效
+    #[inline]
     pub fn is_valid(&self) -> bool {
         self.is_valid
     }
 
     /// 检查是否无效
+    #[inline]
     pub fn is_invalid(&self) -> bool {
         !self.is_valid
     }
 
     /// 获取时间戳（纳秒）- 委托给内部数据包
+    #[inline]
     pub fn get_timestamp_ns(&self) -> u64 {
         self.packet.get_timestamp_ns()
     }
 
     /// 获取数据包长度 - 委托给内部数据包
+    #[inline]
     pub fn packet_length(&self) -> usize {
         self.packet.packet_length()
     }
 
     /// 获取捕获时间 - 委托给内部数据包
+    #[inline]
     pub fn capture_time(&self) -> DateTime<Utc> {
         self.packet.capture_time()
     }
 
     /// 获取校验和 - 委托给内部数据包
+    #[inline]
     pub fn checksum(&self) -> u32 {
         self.packet.checksum()
     }
 
     /// 获取总大小 - 委托给内部数据包
+    #[inline]
     pub fn total_size(&self) -> usize {
         self.packet.total_size()
     }
@@ -339,26 +347,31 @@ impl DataPacket {
     }
 
     /// 获取捕获时间
+    #[inline]
     pub fn capture_time(&self) -> DateTime<Utc> {
         self.header.capture_time()
     }
 
     /// 获取数据包长度
+    #[inline]
     pub fn packet_length(&self) -> usize {
         self.data.len()
     }
 
     /// 获取总大小（头部 + 数据）
+    #[inline]
     pub fn total_size(&self) -> usize {
         DataPacketHeader::HEADER_SIZE + self.packet_length()
     }
 
     /// 获取校验和
+    #[inline]
     pub fn checksum(&self) -> u32 {
         self.header.checksum
     }
 
     /// 获取时间戳（纳秒）
+    #[inline]
     pub fn get_timestamp_ns(&self) -> u64 {
         let capture_time = self.capture_time();
         capture_time.timestamp() as u64 * 1_000_000_000
@@ -366,6 +379,7 @@ impl DataPacket {
     }
 
     /// 验证数据包是否有效
+    #[inline]
     pub fn is_valid(&self) -> bool {
         let calculated_checksum =
             crate::foundation::utils::calculate_crc32(

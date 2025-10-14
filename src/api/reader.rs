@@ -524,10 +524,16 @@ impl PcapReader {
             self.ensure_current_file_open()?;
 
             // 读取指定位置的数据包
-            let packet_result = self
+            let reader = self
                 .current_reader
                 .as_mut()
-                .unwrap()
+                .ok_or_else(|| {
+                    PcapError::InvalidState(
+                        "当前文件读取器未初始化"
+                            .to_string(),
+                    )
+                })?;
+            let packet_result = reader
                 .read_packet_at(pointer.entry.byte_offset);
 
             match packet_result {
@@ -716,10 +722,15 @@ impl PcapReader {
         self.ensure_current_file_open()?;
 
         // 读取指定位置的数据包
-        let packet_result = self
+        let reader = self
             .current_reader
             .as_mut()
-            .unwrap()
+            .ok_or_else(|| {
+                PcapError::InvalidState(
+                    "当前文件读取器未初始化".to_string(),
+                )
+            })?;
+        let packet_result = reader
             .read_packet_at(pointer.entry.byte_offset);
 
         match packet_result {

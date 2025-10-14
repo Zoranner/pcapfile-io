@@ -118,10 +118,12 @@ pub trait DateTimeExtensions {
 }
 
 impl DateTimeExtensions for DateTime<Utc> {
+    #[inline]
     fn to_unix_time_milliseconds(&self) -> i64 {
         self.timestamp_millis()
     }
 
+    #[inline]
     fn from_unix_time_milliseconds(
         milliseconds: i64,
     ) -> DateTime<Utc> {
@@ -132,10 +134,12 @@ impl DateTimeExtensions for DateTime<Utc> {
             })
     }
 
+    #[inline]
     fn to_unix_time_seconds(&self) -> u32 {
         self.timestamp() as u32
     }
 
+    #[inline]
     fn get_nanoseconds(&self) -> u32 {
         self.nanosecond()
     }
@@ -170,6 +174,7 @@ impl DateTimeExtensions for DateTime<Utc> {
 }
 
 /// 计算CRC32校验和
+#[inline]
 pub fn calculate_crc32(data: &[u8]) -> u32 {
     use crc32fast::Hasher;
 

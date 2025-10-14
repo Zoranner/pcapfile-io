@@ -1,3 +1,33 @@
+//! 索引管理器模块
+//!
+//! 提供 PCAP 数据集的索引管理功能，包括：
+//! - 索引文件的生成和加载
+//! - 索引有效性验证
+//! - 时间戳索引构建
+//! - 文件哈希验证
+//!
+//! # 索引文件格式
+//!
+//! 索引文件使用 XML 格式存储，文件扩展名为 `.pidx`。
+//! 包含数据集的元数据和每个数据包的位置信息。
+//!
+//! # 使用示例
+//!
+//! ```no_run
+//! use pcapfile_io::PcapReader;
+//!
+//! let mut reader = PcapReader::new("./data", "my_dataset").unwrap();
+//! reader.initialize().unwrap();
+//!
+//! // 访问索引管理器
+//! let index_manager = reader.index();
+//!
+//! // 获取索引信息
+//! if let Some(index) = index_manager.get_index() {
+//!     println!("数据集包含 {} 个数据包", index.total_packets);
+//! }
+//! ```
+
 use log::{debug, info, warn};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -88,10 +118,15 @@ impl IndexManager {
                         if self.is_index_valid(&index)? {
                             info!("使用现有的有效索引文件");
                             self.index = Some(index);
-                            return Ok(self
+                            return self
                                 .index
                                 .as_ref()
-                                .unwrap());
+                                .ok_or_else(|| {
+                                    PcapError::InvalidState(
+                                        "索引未正确初始化"
+                                            .to_string(),
+                                    )
+                                });
                         } else {
                             info!("索引文件无效或过时，需要重新生成");
                         }
@@ -109,7 +144,11 @@ impl IndexManager {
 
         // 2. 生成新索引
         self.generate_index()?;
-        Ok(self.index.as_ref().unwrap())
+        self.index.as_ref().ok_or_else(|| {
+            PcapError::InvalidState(
+                "索引生成后未正确初始化".to_string(),
+            )
+        })
     }
 
     /// 强制重新生成索引
@@ -168,8 +207,8 @@ impl IndexManager {
         }
     }
 
-    /// 异步验证索引文件的有效性
-    pub async fn verify_index_validity(
+    /// 验证索引文件的有效性
+    pub fn verify_index_validity(
         &self,
     ) -> PcapResult<bool> {
         if let Some(index) = &self.index {

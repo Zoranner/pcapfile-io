@@ -138,6 +138,7 @@ impl PidxIndex {
         );
     }
 
+    #[inline]
     pub fn find_packet_by_timestamp(
         &self,
         timestamp_ns: u64,
