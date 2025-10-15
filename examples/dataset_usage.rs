@@ -4,13 +4,44 @@
 //! - 通过Writer创建数据集并生成索引
 //! - 通过Reader读取数据集并访问索引信息
 //! - 索引管理和验证
+//! - 使用自定义时间戳生成数据包
+//! - 生成随机大小和内容的数据包
 
-use chrono::Utc;
+use chrono::{DateTime, TimeZone, Utc};
 use pcapfile_io::{
     DataPacket, PcapReader, PcapResult, PcapWriter,
     ReaderConfig, WriterConfig,
 };
+use rand::Rng;
 use std::path::Path;
+
+// ========================================
+// 测试配置参数（可根据需要修改）
+// ========================================
+
+/// 开始时间：年
+const START_YEAR: i32 = 2025;
+/// 开始时间：月
+const START_MONTH: u32 = 10;
+/// 开始时间：日
+const START_DAY: u32 = 1;
+/// 开始时间：时
+const START_HOUR: u32 = 8;
+/// 开始时间：分
+const START_MINUTE: u32 = 30;
+/// 开始时间：秒
+const START_SECOND: u32 = 10;
+
+/// 每秒生成的数据包数量
+const PACKETS_PER_SECOND: usize = 8;
+/// 持续时间（秒）
+const DURATION_SECONDS: usize = 30;
+/// 数据包大小范围：最小值（字节）
+const MIN_PACKET_SIZE: usize = 64;
+/// 数据包大小范围：最大值（字节）
+const MAX_PACKET_SIZE: usize = 1500;
+/// 每个文件最大数据包数
+const MAX_PACKETS_PER_FILE: usize = 1000;
 
 fn main() -> PcapResult<()> {
     // 设置数据集路径
@@ -39,18 +70,17 @@ fn main() -> PcapResult<()> {
 
 /// 创建测试数据包
 fn create_test_packet(
-    sequence: usize,
-    size: usize,
+    capture_time: DateTime<Utc>,
 ) -> PcapResult<DataPacket> {
+    let mut rng = rand::thread_rng();
+    
+    // 随机生成数据包大小
+    let size = rng.gen_range(MIN_PACKET_SIZE..=MAX_PACKET_SIZE);
     let mut data = vec![0u8; size];
 
-    // 填充测试数据模式
-    for (i, item) in data.iter_mut().enumerate().take(size)
-    {
-        *item = ((sequence + i) % 256) as u8;
-    }
+    // 填充随机数据
+    rng.fill(&mut data[..]);
 
-    let capture_time = Utc::now();
     Ok(DataPacket::from_datetime(capture_time, data)?)
 }
 
@@ -60,7 +90,7 @@ fn create_dataset(dataset_path: &Path) -> PcapResult<()> {
 
     // 配置写入器
     let config = WriterConfig {
-        max_packets_per_file: 1000, // 每1000个数据包一个文件
+        max_packets_per_file: MAX_PACKETS_PER_FILE,
         ..Default::default()
     };
 
@@ -70,14 +100,43 @@ fn create_dataset(dataset_path: &Path) -> PcapResult<()> {
         config,
     )?;
 
-    // 写入2500个测试数据包
-    for i in 0..2500 {
-        let packet = create_test_packet(i, 256)?;
+    // 使用配置的开始时间
+    let start_time = Utc
+        .with_ymd_and_hms(
+            START_YEAR,
+            START_MONTH,
+            START_DAY,
+            START_HOUR,
+            START_MINUTE,
+            START_SECOND,
+        )
+        .unwrap();
+    
+    println!("   开始时间: {}", start_time.format("%Y-%m-%d %H:%M:%S"));
+
+    // 计算总数据包数
+    const TOTAL_PACKETS: usize = PACKETS_PER_SECOND * DURATION_SECONDS;
+    
+    // 每个数据包之间的时间间隔（纳秒）
+    const INTERVAL_NANOSECONDS: i64 = 1_000_000_000 / PACKETS_PER_SECOND as i64;
+
+    println!("   配置: 每秒{PACKETS_PER_SECOND}个数据包，持续{DURATION_SECONDS}秒");
+    println!("   总数据包数: {TOTAL_PACKETS}");
+    println!("   数据包大小: {MIN_PACKET_SIZE}-{MAX_PACKET_SIZE} 字节（随机）");
+    println!("   数据包间隔: {:.2} 毫秒\n", INTERVAL_NANOSECONDS as f64 / 1_000_000.0);
+
+    // 写入数据包
+    for i in 0..TOTAL_PACKETS {
+        // 计算当前数据包的时间戳
+        let packet_time = start_time + chrono::Duration::nanoseconds(i as i64 * INTERVAL_NANOSECONDS);
+        
+        let packet = create_test_packet(packet_time)?;
         writer.write_packet(&packet)?;
 
-        if i % 500 == 0 {
+        if (i + 1) % 300 == 0 {
             let count = i + 1;
-            println!("   已写入 {count} 个数据包");
+            let elapsed_seconds = (i + 1) / PACKETS_PER_SECOND;
+            println!("   已写入 {count} 个数据包 (已模拟 {elapsed_seconds} 秒)");
         }
     }
 
@@ -85,7 +144,7 @@ fn create_dataset(dataset_path: &Path) -> PcapResult<()> {
     writer.finalize()?;
 
     // 通过writer访问索引信息
-    println!("   数据集信息：");
+    println!("\n   数据集信息：");
     let dataset_info = writer.get_dataset_info();
     println!(
         "     - 文件数量: {}",
@@ -130,17 +189,34 @@ fn read_dataset(dataset_path: &Path) -> PcapResult<()> {
         dataset_info.total_size
     );
 
-    // 读取所有数据包
+    // 读取所有数据包并验证时间戳
     let mut packet_count = 0;
-    while let Some(_packet) = reader.read_packet()? {
+    let mut first_timestamp: Option<DateTime<Utc>> = None;
+    let mut last_timestamp: Option<DateTime<Utc>> = None;
+
+    while let Some(packet) = reader.read_packet()? {
         packet_count += 1;
 
-        if packet_count % 500 == 0 {
+        if first_timestamp.is_none() {
+            first_timestamp = Some(packet.capture_time());
+        }
+        last_timestamp = Some(packet.capture_time());
+
+        if packet_count % 300 == 0 {
             println!("   已读取 {packet_count} 个数据包");
         }
     }
 
-    println!("   总共读取: {packet_count} 个数据包");
+    println!("\n   总共读取: {packet_count} 个数据包");
+    
+    if let (Some(first), Some(last)) = (first_timestamp, last_timestamp) {
+        println!("   时间戳范围：");
+        println!("     - 第一个数据包: {}", first.format("%Y-%m-%d %H:%M:%S%.3f"));
+        println!("     - 最后一个数据包: {}", last.format("%Y-%m-%d %H:%M:%S%.3f"));
+        let duration = (last.timestamp_nanos_opt().unwrap_or(0) - first.timestamp_nanos_opt().unwrap_or(0)) as f64 / 1_000_000_000.0;
+        println!("     - 时间跨度: {:.3} 秒", duration);
+    }
+    
     println!("   ✅ 数据集读取完成\n");
     Ok(())
 }
