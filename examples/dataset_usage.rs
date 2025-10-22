@@ -73,9 +73,10 @@ fn create_test_packet(
     capture_time: DateTime<Utc>,
 ) -> PcapResult<DataPacket> {
     let mut rng = rand::thread_rng();
-    
+
     // 随机生成数据包大小
-    let size = rng.gen_range(MIN_PACKET_SIZE..=MAX_PACKET_SIZE);
+    let size =
+        rng.gen_range(MIN_PACKET_SIZE..=MAX_PACKET_SIZE);
     let mut data = vec![0u8; size];
 
     // 填充随机数据
@@ -111,31 +112,43 @@ fn create_dataset(dataset_path: &Path) -> PcapResult<()> {
             START_SECOND,
         )
         .unwrap();
-    
-    println!("   开始时间: {}", start_time.format("%Y-%m-%d %H:%M:%S"));
+
+    println!(
+        "   开始时间: {}",
+        start_time.format("%Y-%m-%d %H:%M:%S")
+    );
 
     // 计算总数据包数
-    const TOTAL_PACKETS: usize = PACKETS_PER_SECOND * DURATION_SECONDS;
-    
+    const TOTAL_PACKETS: usize =
+        PACKETS_PER_SECOND * DURATION_SECONDS;
+
     // 每个数据包之间的时间间隔（纳秒）
-    const INTERVAL_NANOSECONDS: i64 = 1_000_000_000 / PACKETS_PER_SECOND as i64;
+    const INTERVAL_NANOSECONDS: i64 =
+        1_000_000_000 / PACKETS_PER_SECOND as i64;
 
     println!("   配置: 每秒{PACKETS_PER_SECOND}个数据包，持续{DURATION_SECONDS}秒");
     println!("   总数据包数: {TOTAL_PACKETS}");
     println!("   数据包大小: {MIN_PACKET_SIZE}-{MAX_PACKET_SIZE} 字节（随机）");
-    println!("   数据包间隔: {:.2} 毫秒\n", INTERVAL_NANOSECONDS as f64 / 1_000_000.0);
+    println!(
+        "   数据包间隔: {:.2} 毫秒\n",
+        INTERVAL_NANOSECONDS as f64 / 1_000_000.0
+    );
 
     // 写入数据包
     for i in 0..TOTAL_PACKETS {
         // 计算当前数据包的时间戳
-        let packet_time = start_time + chrono::Duration::nanoseconds(i as i64 * INTERVAL_NANOSECONDS);
-        
+        let packet_time = start_time
+            + chrono::Duration::nanoseconds(
+                i as i64 * INTERVAL_NANOSECONDS,
+            );
+
         let packet = create_test_packet(packet_time)?;
         writer.write_packet(&packet)?;
 
         if (i + 1) % 300 == 0 {
             let count = i + 1;
-            let elapsed_seconds = (i + 1) / PACKETS_PER_SECOND;
+            let elapsed_seconds =
+                (i + 1) / PACKETS_PER_SECOND;
             println!("   已写入 {count} 个数据包 (已模拟 {elapsed_seconds} 秒)");
         }
     }
@@ -208,15 +221,27 @@ fn read_dataset(dataset_path: &Path) -> PcapResult<()> {
     }
 
     println!("\n   总共读取: {packet_count} 个数据包");
-    
-    if let (Some(first), Some(last)) = (first_timestamp, last_timestamp) {
+
+    if let (Some(first), Some(last)) =
+        (first_timestamp, last_timestamp)
+    {
         println!("   时间戳范围：");
-        println!("     - 第一个数据包: {}", first.format("%Y-%m-%d %H:%M:%S%.3f"));
-        println!("     - 最后一个数据包: {}", last.format("%Y-%m-%d %H:%M:%S%.3f"));
-        let duration = (last.timestamp_nanos_opt().unwrap_or(0) - first.timestamp_nanos_opt().unwrap_or(0)) as f64 / 1_000_000_000.0;
+        println!(
+            "     - 第一个数据包: {}",
+            first.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+        println!(
+            "     - 最后一个数据包: {}",
+            last.format("%Y-%m-%d %H:%M:%S%.3f")
+        );
+        let duration =
+            (last.timestamp_nanos_opt().unwrap_or(0)
+                - first.timestamp_nanos_opt().unwrap_or(0))
+                as f64
+                / 1_000_000_000.0;
         println!("     - 时间跨度: {:.3} 秒", duration);
     }
-    
+
     println!("   ✅ 数据集读取完成\n");
     Ok(())
 }

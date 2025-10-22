@@ -571,9 +571,304 @@ impl PcapReader {
         Ok(())
     }
 
+    /// 跳转到指定时间戳（纳秒）
+    ///
+    /// 返回实际定位到的时间戳。如果精确匹配不存在，返回时间戳后面最接近的数据包。
+    ///
+    /// # 参数
+    /// - `timestamp_ns` - 目标时间戳（纳秒）
+    ///
+    /// # 返回
+    /// - `Ok(actual_timestamp)` - 成功跳转，返回实际定位到的时间戳
+    /// - `Err(error)` - 未找到数据包或发生错误
+    pub fn seek_to_timestamp(
+        &mut self,
+        timestamp_ns: u64,
+    ) -> PcapResult<u64> {
+        self.initialize()?;
+
+        // 1. 先提取所需信息，避免借用冲突
+        let (
+            actual_ts,
+            file_index,
+            byte_offset,
+            packet_offset,
+        ) = {
+            let index = self
+                .index_manager
+                .get_index()
+                .ok_or_else(|| {
+                    PcapError::InvalidState(
+                        "索引未加载".to_string(),
+                    )
+                })?;
+
+            // 尝试精确匹配
+            let (actual_ts, pointer) = if let Some(ptr) =
+                index.find_packet_by_timestamp(timestamp_ns)
+            {
+                (timestamp_ns, ptr.clone())
+            } else {
+                // 查找 >= target 的最小时间戳
+                Self::find_timestamp_ge(&index.timestamp_index, timestamp_ns)
+                    .ok_or_else(|| PcapError::InvalidArgument(
+                        format!("未找到时间戳 >= {timestamp_ns} 的数据包")
+                    ))?
+            };
+
+            // 计算文件内的序号
+            let file_index_data =
+                &index.data_files.files[pointer.file_index];
+            let packet_offset = file_index_data
+                .data_packets
+                .iter()
+                .position(|p| {
+                    p.timestamp_ns
+                        == pointer.entry.timestamp_ns
+                })
+                .unwrap_or(0);
+
+            (
+                actual_ts,
+                pointer.file_index,
+                pointer.entry.byte_offset,
+                packet_offset,
+            )
+        };
+
+        // 2. 打开对应文件
+        self.open_file(file_index)?;
+
+        // 3. seek 到字节偏移
+        if let Some(reader) = self.current_reader.as_mut() {
+            reader.seek_to(byte_offset)?;
+        } else {
+            return Err(PcapError::InvalidState(
+                "文件未打开".to_string(),
+            ));
+        }
+
+        // 4. 更新状态
+        self.current_file_index = file_index;
+
+        // 计算全局位置
+        let index = self
+            .index_manager
+            .get_index()
+            .ok_or_else(|| {
+                PcapError::InvalidState(
+                    "索引未加载".to_string(),
+                )
+            })?;
+        self.current_position = self
+            .calculate_global_position(
+                index,
+                file_index,
+                packet_offset,
+            );
+
+        info!("已跳转到时间戳: {timestamp_ns}ns (实际: {actual_ts}ns), 全局位置: {}", 
+            self.current_position);
+
+        Ok(actual_ts)
+    }
+
+    /// 跳转到指定索引的数据包（从0开始）
+    ///
+    /// # 参数
+    /// - `packet_index` - 目标数据包的全局索引（从0开始）
+    pub fn seek_to_packet(
+        &mut self,
+        packet_index: usize,
+    ) -> PcapResult<()> {
+        self.initialize()?;
+
+        // 1. 先提取所需信息，避免借用冲突
+        let (target_file_idx, byte_offset, packet_offset) = {
+            let index = self
+                .index_manager
+                .get_index()
+                .ok_or_else(|| {
+                    PcapError::InvalidState(
+                        "索引未加载".to_string(),
+                    )
+                })?;
+
+            // 检查索引范围
+            if packet_index >= index.total_packets as usize
+            {
+                return Err(PcapError::InvalidArgument(
+                    format!("数据包索引 {packet_index} 超出范围 (总数: {})", index.total_packets)
+                ));
+            }
+
+            // 遍历文件，找到目标文件和文件内偏移
+            let mut accumulated = 0usize;
+            let mut target_file_idx = 0;
+            let mut packet_offset = 0;
+
+            for (file_idx, file) in
+                index.data_files.files.iter().enumerate()
+            {
+                let next_accumulated = accumulated
+                    + file.packet_count as usize;
+                if packet_index < next_accumulated {
+                    target_file_idx = file_idx;
+                    packet_offset =
+                        packet_index - accumulated;
+                    break;
+                }
+                accumulated = next_accumulated;
+            }
+
+            // 获取数据包条目
+            let file =
+                &index.data_files.files[target_file_idx];
+            let packet_entry =
+                &file.data_packets[packet_offset];
+            let byte_offset = packet_entry.byte_offset;
+
+            (target_file_idx, byte_offset, packet_offset)
+        };
+
+        // 2. 打开文件并 seek
+        self.open_file(target_file_idx)?;
+        if let Some(reader) = self.current_reader.as_mut() {
+            reader.seek_to(byte_offset)?;
+        } else {
+            return Err(PcapError::InvalidState(
+                "文件未打开".to_string(),
+            ));
+        }
+
+        // 3. 更新状态
+        self.current_file_index = target_file_idx;
+        self.current_position = packet_index as u64;
+
+        info!("已跳转到数据包索引: {packet_index}, 文件: {target_file_idx}, 文件内偏移: {packet_offset}");
+
+        Ok(())
+    }
+
+    /// 检查是否已到达文件末尾
+    pub fn is_eof(&self) -> bool {
+        if let Some(index) = self.index_manager.get_index()
+        {
+            self.current_position >= index.total_packets
+        } else {
+            // 未初始化时，检查是否有可读取的文件
+            self.current_reader.is_none()
+        }
+    }
+
+    /// 获取总数据包数量（如果索引可用）
+    pub fn total_packets(&self) -> Option<usize> {
+        self.index_manager
+            .get_index()
+            .map(|idx| idx.total_packets as usize)
+    }
+
+    /// 获取当前数据包索引位置（全局序号，从0开始）
+    pub fn current_packet_index(&self) -> u64 {
+        self.current_position
+    }
+
+    /// 获取当前读取进度（百分比：0.0 - 1.0）
+    pub fn progress(&self) -> Option<f64> {
+        self.total_packets().map(|total| {
+            if total == 0 {
+                1.0
+            } else {
+                (self.current_position as f64
+                    / total as f64)
+                    .min(1.0)
+            }
+        })
+    }
+
+    /// 跳过指定数量的数据包
+    ///
+    /// # 参数
+    /// - `count` - 要跳过的数据包数量
+    ///
+    /// # 返回
+    /// 实际跳过的数据包数量（可能小于请求数量，如果到达末尾）
+    pub fn skip_packets(
+        &mut self,
+        count: usize,
+    ) -> PcapResult<usize> {
+        let current_idx = self.current_position as usize;
+        let target_idx = current_idx + count;
+
+        let total = self.total_packets().unwrap_or(0);
+        // 限制目标索引到有效范围（0 到 total-1）
+        let actual_target = if total == 0 {
+            0
+        } else {
+            target_idx.min(total - 1)
+        };
+        let actual_skipped =
+            actual_target.saturating_sub(current_idx);
+
+        if actual_skipped > 0 {
+            self.seek_to_packet(actual_target)?;
+        }
+
+        Ok(actual_skipped)
+    }
+
     // =================================================================
     // 私有方法
     // =================================================================
+
+    /// 计算指定文件索引和文件内数据包偏移对应的全局数据包位置
+    fn calculate_global_position(
+        &self,
+        index: &crate::business::index::types::PidxIndex,
+        file_index: usize,
+        packet_offset_in_file: usize,
+    ) -> u64 {
+        let mut position = 0u64;
+        for (idx, file) in
+            index.data_files.files.iter().enumerate()
+        {
+            if idx < file_index {
+                position += file.packet_count;
+            } else if idx == file_index {
+                position += packet_offset_in_file as u64;
+                break;
+            }
+        }
+        position
+    }
+
+    /// 查找大于等于指定时间戳的最接近时间戳及其指针
+    fn find_timestamp_ge(
+        timestamp_index: &std::collections::HashMap<
+            u64,
+            crate::business::index::types::TimestampPointer,
+        >,
+        target_ns: u64,
+    ) -> Option<(
+        u64,
+        crate::business::index::types::TimestampPointer,
+    )> {
+        let mut candidates: Vec<u64> = timestamp_index
+            .keys()
+            .filter(|&&ts| ts >= target_ns)
+            .copied()
+            .collect();
+
+        if candidates.is_empty() {
+            return None;
+        }
+
+        candidates.sort_unstable();
+        let closest_ts = candidates[0];
+        timestamp_index
+            .get(&closest_ts)
+            .map(|ptr| (closest_ts, ptr.clone()))
+    }
 
     /// 获取数据集总大小
     fn get_total_size(&self) -> PcapResult<u64> {

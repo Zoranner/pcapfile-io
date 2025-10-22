@@ -62,7 +62,7 @@ fn bench_index_generation(c: &mut Criterion) {
             // 触发索引生成
             reader
                 .index_mut()
-                .regenerate_index()
+                .rebuild_index()
                 .expect("生成索引失败");
 
             black_box(());
@@ -181,7 +181,7 @@ fn bench_index_validation(c: &mut Criterion) {
             // 验证索引
             let _is_valid = reader
                 .index()
-                .verify_index_validity()
+                .validate_index()
                 .expect("验证失败");
 
             black_box(_is_valid);

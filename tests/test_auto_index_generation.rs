@@ -173,7 +173,7 @@ fn test_manual_index_generation_after_write() {
     // 生成索引
     let index_path = reader
         .index_mut()
-        .regenerate_index()
+        .rebuild_index()
         .expect("手动生成索引失败");
 
     // 步骤3: 验证手动生成的索引

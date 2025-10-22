@@ -170,7 +170,7 @@ impl PcapWriter {
         self.current_writer = None;
 
         // 生成索引
-        self.index_manager.regenerate_index()?;
+        self.index_manager.rebuild_index()?;
 
         self.is_finalized = true;
         info!(

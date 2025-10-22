@@ -151,10 +151,8 @@ impl IndexManager {
         })
     }
 
-    /// 强制重新生成索引
-    pub fn regenerate_index(
-        &mut self,
-    ) -> PcapResult<PathBuf> {
+    /// 强制重建索引
+    pub fn rebuild_index(&mut self) -> PcapResult<PathBuf> {
         self.index = None;
         self.generate_index()
     }
@@ -207,10 +205,8 @@ impl IndexManager {
         }
     }
 
-    /// 验证索引文件的有效性
-    pub fn verify_index_validity(
-        &self,
-    ) -> PcapResult<bool> {
+    /// 验证索引的有效性
+    pub fn validate_index(&self) -> PcapResult<bool> {
         if let Some(index) = &self.index {
             info!("验证索引文件有效性...");
 
