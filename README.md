@@ -24,7 +24,7 @@
 
 ```toml
 [dependencies]
-pcapfile-io = "0.1.3"
+pcapfile-io = "0.1.4"
 chrono = "0.4"  # 用于时间戳处理
 ```
 

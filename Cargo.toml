@@ -1,6 +1,6 @@
 [package]
 name = "pcapfile-io"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "高性能PCAP文件读写库"
 license = "MIT"
