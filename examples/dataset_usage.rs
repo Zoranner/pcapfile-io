@@ -19,6 +19,9 @@ use std::path::Path;
 // 测试配置参数（可根据需要修改）
 // ========================================
 
+/// 数据集名称
+const DATASET_NAME: &str = "test_dataset_04";
+
 /// 开始时间：年
 const START_YEAR: i32 = 2025;
 /// 开始时间：月
@@ -35,23 +38,26 @@ const START_SECOND: u32 = 10;
 /// 每秒生成的数据包数量
 const PACKETS_PER_SECOND: usize = 8;
 /// 持续时间（秒）
-const DURATION_SECONDS: usize = 30;
+const DURATION_SECONDS: usize = 2000;
 /// 数据包大小范围：最小值（字节）
 const MIN_PACKET_SIZE: usize = 64;
 /// 数据包大小范围：最大值（字节）
 const MAX_PACKET_SIZE: usize = 1500;
 /// 每个文件最大数据包数
-const MAX_PACKETS_PER_FILE: usize = 1000;
+const MAX_PACKETS_PER_FILE: usize = 8000;
 
 fn main() -> PcapResult<()> {
     // 设置数据集路径
     let dataset_path = Path::new("examples/output");
 
-    // 确保目录存在
-    if dataset_path.exists() {
-        std::fs::remove_dir_all(dataset_path)?;
-    }
+    // 确保输出目录存在
     std::fs::create_dir_all(dataset_path)?;
+
+    // 如果特定数据集已存在，则删除
+    let specific_dataset_path = dataset_path.join(DATASET_NAME);
+    if specific_dataset_path.exists() {
+        std::fs::remove_dir_all(&specific_dataset_path)?;
+    }
 
     println!("=== PcapFile.IO 数据集使用示例 ===\n");
 
@@ -97,7 +103,7 @@ fn create_dataset(dataset_path: &Path) -> PcapResult<()> {
 
     let mut writer = PcapWriter::new_with_config(
         dataset_path,
-        "test_dataset",
+        DATASET_NAME,
         config,
     )?;
 
@@ -182,7 +188,7 @@ fn read_dataset(dataset_path: &Path) -> PcapResult<()> {
 
     let mut reader = PcapReader::new_with_config(
         dataset_path,
-        "test_dataset",
+        DATASET_NAME,
         ReaderConfig::default(),
     )?;
 
@@ -253,7 +259,7 @@ fn demonstrate_index_management(
     println!("3. 演示索引管理功能...");
 
     let mut reader =
-        PcapReader::new(dataset_path, "test_dataset")?;
+        PcapReader::new(dataset_path, DATASET_NAME)?;
 
     // 获取详细文件信息
     let file_list = reader.get_file_info_list()?;
